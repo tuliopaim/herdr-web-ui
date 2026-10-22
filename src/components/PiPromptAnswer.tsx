@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Send, X } from "lucide-react";
+import { ArrowUp, ImagePlus, X } from "lucide-react";
 import { useMachineApi } from "../lib/machineContext.tsx";
 import { useT } from "../lib/i18n.ts";
 import { imageMention } from "../lib/compose.ts";
@@ -97,8 +97,8 @@ export function PiPromptAnswer({ paneId, defaultText, label, labelledBy, placeho
       }} />
     <div className="prompt-card-custom-row prompt-card-answer-actions">
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} />
-      <button type="button" className="btn" disabled={disabled || uploading} aria-label={t("Attach files")} title={t("Attach files")} onClick={() => input.current?.click()}><ImagePlus aria-hidden="true" /></button>
-      <button type="button" className="btn btn-primary" disabled={disabled || uploading || !value || value.length > 12_000} onClick={send}><Send aria-hidden="true" />{t("Send")}</button>
+      <button type="button" className="btn icon-button" disabled={disabled || uploading} aria-label={t("Attach files")} title={t("Attach files")} onClick={() => input.current?.click()}><ImagePlus aria-hidden="true" /></button>
+      <button type="button" className="btn btn-primary composer-action composer-send" aria-label={t("Send")} title={t("Send")} disabled={disabled || uploading || !value || value.length > 12_000} onClick={send}><ArrowUp aria-hidden="true" /></button>
     </div>
     {value.length > 12_000 && <p className="prompt-card-error" role="status">{t("{max}-character limit · {count} over", { max: 12_000, count: value.length - 12_000 })}</p>}
     {error && <p className="prompt-card-error" role="alert">{error}</p>}

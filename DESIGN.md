@@ -1753,6 +1753,10 @@ Alert rows of the table above from the `--droplet-*` roles in `src/styles.css`.
   Past `ask_user` calls use the transcript's existing question list.
   Following [Claude Code's separate dialog-answer and transcript controls](https://code.claude.com/docs/en/interactive-mode),
   the open Pi editor replaces the regular composer visually, keeping its message draft mounted.
+  Following the same Claude Code input-area pattern, Pi questions use the composer's UI font,
+  surface tokens and round send action, rather than transcript typography. The answer editor
+  has no nested input border or redundant caption. A folded question shares its outer outline
+  with the composer below, with square adjoining edges and rounded outer corners.
   Folding restores the composer and reduces the question to a labeled header row, without
   discarding the answer. Back is an unnumbered navigation button. Attachments wrap as thumbnails
   with remove buttons rather than repeating status labels; their status remains available to

@@ -38,7 +38,7 @@
   --chat-fs-xl: calc(var(--fs-xl) * var(--chat-scale, 1));
 }
 
-.prompt-dock > .prompt-card {
+.prompt-dock > .prompt-card:not(.is-pi-question) {
   --fs-2xs: var(--chat-fs-2xs);
   --fs-xs: var(--chat-fs-xs);
   --fs-sm: var(--chat-fs-sm);
@@ -1525,4 +1525,10 @@
 
 .prompt-dock:has(> .prompt-card.is-pi-editor:not(.is-folded)) {
   margin-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+}
+
+/* Share one outline with the waiting-question row while the normal composer is visible. */
+.prompt-dock:has(> .is-pi-question.is-folded) + .composer .composer-surface {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
