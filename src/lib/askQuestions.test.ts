@@ -3,6 +3,18 @@ import { describe, expect, test } from "bun:test";
 import { askedQuestions } from "./askQuestions.ts";
 
 describe("a past question tool call", () => {
+  test("reads Pi's single ask_user question and preserves option descriptions", () => {
+    expect(askedQuestions("ask_user", { question: "Which account?", options: [
+      { label: "Personal", description: "My own account" }, { label: "Company" },
+    ] })).toEqual([{ header: null, question: "Which account?", multi: false, recommended: null, options: [
+      { label: "Personal", description: "My own account", preview: null },
+      { label: "Company", description: null, preview: null },
+    ] }]);
+    for (const args of [null, {}, { question: "" }, { question: "Q?", options: [{ label: "" }] }]) {
+      expect(askedQuestions("ask_user", args)).toBeNull();
+    }
+  });
+
   test("reads omp's ask, with its recommended option by index", () => {
     expect(askedQuestions("ask", {
       i: "Picking the install path",

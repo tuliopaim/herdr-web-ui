@@ -23,14 +23,14 @@ export interface AskedQuestion {
   options: AskedOption[];
 }
 
-const ASK_TOOLS: ReadonlySet<string> = new Set(["ask", "ask_user_question", "request_user_input", "AskUserQuestion"]);
+const ASK_TOOLS: ReadonlySet<string> = new Set(["ask", "ask_user", "ask_user_question", "request_user_input", "AskUserQuestion"]);
 
 const optionalText = (value: unknown): value is string | null | undefined => value == null || typeof value === "string";
 
 /** A question tool's questions, or null for another tool or arguments not in a shape it asks with. */
 export function askedQuestions(tool: string, args: unknown): AskedQuestion[] | null {
   if (!ASK_TOOLS.has(tool) || args === null || typeof args !== "object") return null;
-  const questions = (args as Record<string, unknown>)["questions"];
+  const questions = tool === "ask_user" ? [args] : (args as Record<string, unknown>)["questions"];
   if (!Array.isArray(questions) || questions.length === 0) return null;
   const asked: AskedQuestion[] = [];
   for (const value of questions) {
