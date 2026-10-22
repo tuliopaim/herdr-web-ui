@@ -26,6 +26,17 @@ describe("Pi's ask_user extension", () => {
     }
   });
 
+  test("reads the live OptChat footer without accepting stale dialogs", () => {
+    const screen = readFileSync(new URL("../fixtures/pi-ask-user-optchat-menu.txt", import.meta.url), "utf8");
+    const prompt = parsePiAskUser(screen);
+    expect(prompt?.responder).toBe("pi-ask-user");
+    expect(prompt?.question).toBe("One more capture of the question screen. Please wait two seconds before answering.");
+    expect(prompt?.options[1]?.label).toBe("Still generic controls");
+    expect(parsePiAskUser(screen + "\n❯ next message")).toBeNull();
+    expect(parsePiAskUser(screen.replace("Agents: 0 running", "Unexpected output: 0 running"))).toBeNull();
+    expect(parsePiAskUser(screen.replace(/OptChat:.*$/m, "Unrelated output"))).toBeNull();
+  });
+
   test("reads options and descriptions without sending digit shortcuts", () => {
     const prompt = parseInteractivePrompt("pi", askUserScreen())!;
     expect(prompt).not.toBeNull();

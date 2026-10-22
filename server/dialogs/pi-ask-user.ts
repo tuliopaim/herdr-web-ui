@@ -11,6 +11,14 @@ export function parsePiAskUser(screen: string): ParsedPrompt | null {
   const close = findLastIndex(lines, (line) => isDivider(line));
   if (close < 0) return null;
   const tail = lines.slice(close + 1).map(cleanLine).filter(Boolean);
+  // OptChat surrounds Pi's cwd/usage footer with its agent and conversation status.
+  // Only accept that complete pair, not arbitrary output after an old dialog.
+  if (tail.length === 4
+    && /^Agents: \d+ running · \d+ saved\b/.test(tail[0]!)
+    && /^OptChat: .+ · \d+ messages · \d+ pending · \d+ agents$/.test(tail[3]!)) {
+    tail.shift();
+    tail.pop();
+  }
   if (tail.length > 2 || tail.some((line) => /^[❯›>$]/.test(line))) return null;
   let hint = close - 1;
   while (hint >= 0 && !cleanLine(lines[hint]!)) hint -= 1;
