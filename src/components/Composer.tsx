@@ -66,9 +66,12 @@ import { useT } from "../lib/i18n.ts";
 import { offersRetry, userFailure, type UserFailure } from "../lib/userError.ts";
 import { AttachmentTooLargeError } from "../lib/api.ts";
 import { modalOpen } from "../lib/focus.ts";
+import { commentsMessage, responseComments } from "../lib/responseComments.ts";
 
 export interface ComposerProps {
   connected: boolean;
+  /** Comments are follow-ups, never answers to an interactive question. */
+  allowComments?: boolean;
   /** the socket has been connected on this page before: not connected, the offline sentence says Reconnecting
    *  (`connectedBefore`), else Connecting (omitted, as the fixtures do, a wait reads as the first connection) */
   connectedBefore?: boolean;
@@ -231,6 +234,7 @@ function useMediaQuery(query: string): boolean {
 /** Chat-style input surface with pane-local drafts, command/file completion, and image mentions. */
 export function Composer({
   connected,
+  allowComments = true,
   connectedBefore = false,
   paneId,
   autoFocus = true,
@@ -288,6 +292,9 @@ export function Composer({
   const attachmentsRef = useRef<Attachment[]>([]);
   const removedAttachments = useRef(new Set<number>());
   const fileRequest = useRef(0);
+  const commentOwner = paneStorageId(machineId, paneId);
+  const comments = useSyncExternalStore(responseComments.subscribe, () => responseComments.read(commentOwner));
+  const hasComments = comments.length > 0;
   const draftKey = `herdr-web-ui:composer-draft:${paneStorageId(machineId, paneId)}`;
   const { text, sending } = useSyncExternalStore(composerDrafts.subscribe, () => composerDrafts.read(draftKey));
   const setText = useCallback((value: string | ((previous: string) => string)) => composerDrafts.set(draftKey, value), [draftKey]);
@@ -803,11 +810,18 @@ export function Composer({
    * `sendAnyway`: the user saw the box a DraftRefusal showed and sends over it. */
   const send = useCallback((clearDraft?: string, sendAnyway = false): boolean => {
     if (composingRef.current) return false;
-    if (role === "observe" || !connected || uploading || roomless || sending || text.trim().length === 0) return false;
-    if (terminalTyped?.name === "resume" && onOpenHistory) { setMenuDismissed(true); onOpenHistory(); return true; }
+    if (role === "observe" || !connected || uploading || roomless || sending || (!hasComments && text.trim().length === 0)) return false;
+    if (!hasComments && terminalTyped?.name === "resume" && onOpenHistory) { setMenuDismissed(true); onOpenHistory(); return true; }
+    if (hasComments && !allowComments) { setNote(t("Answer the question before sending comments.")); return false; }
+    if (commentsMessage(text, comments).length > MAX_COMPOSER_CHARS) {
+      setNote(t("Message and comments exceed the {max}-character limit. Shorten them before sending.", { max: formatChars(MAX_COMPOSER_CHARS) }));
+      return false;
+    }
     const sent = text;
+    const sentComments = comments;
     const sentAttachments = attachments;
     const settle = (result: boolean | string | DraftRefusal): void => {
+      if (result === true) responseComments.settle(commentOwner, sentComments);
       const acknowledged = result === true ? composerDrafts.settle(draftKey, sent) : null;
       if (!mounted.current) return;
       if (typeof result !== "boolean") setNote(result);
@@ -826,7 +840,7 @@ export function Composer({
     // a polish landing before the acknowledgement would count as an edit and keep the sent message here
     dictation.forget();
     try {
-      const result = onSend(text, clearDraft, sendAnyway);
+      const result = onSend(commentsMessage(text, sentComments), clearDraft, sendAnyway);
       if (!(result instanceof Promise)) { settle(result); composerDrafts.end(draftKey); return true; }
       void result.then(settle).catch(() => { if (mounted.current) setNote(t("Not confirmed. Check the terminal before sending again.")); }).finally(() => composerDrafts.end(draftKey));
     } catch {
@@ -834,7 +848,7 @@ export function Composer({
       if (mounted.current) setNote(t("Not confirmed. Check the terminal before sending again."));
     }
     return true;
-  }, [attachments, connected, dictation.forget, draftKey, onOpenHistory, onSend, role, roomless, sending, terminalTyped, text, uploading]);
+  }, [allowComments, comments, commentOwner, hasComments, attachments, connected, dictation.forget, draftKey, onOpenHistory, onSend, role, roomless, sending, terminalTyped, text, uploading]);
   const sendRef = useRef(send);
   sendRef.current = send;
   const connectedRef = useRef(connected);
@@ -901,6 +915,7 @@ export function Composer({
   /** A quick reply follows the same delivery policy as Send, and leaves the box alone. */
   const sendQuick = useCallback((reply: string) => {
     if (!connected || sending) return;
+    if (hasComments) { setTextAndCaret(reply, reply.length); return; }
     setNote(null);
     // a quick reply is not the box's text, so its note offers no send over a draft
     const settle = (result: boolean | string | DraftRefusal): void => {
@@ -917,7 +932,7 @@ export function Composer({
       composerDrafts.end(draftKey);
       if (mounted.current) setNote(t("Not confirmed. Check the terminal before sending again."));
     }
-  }, [connected, draftKey, onSend, sending]);
+  }, [hasComments, setTextAndCaret, connected, draftKey, onSend, sending]);
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1010,7 +1025,7 @@ export function Composer({
   // what the status line says; what may be sent, queued or stopped goes by the agent's own status
   const shownStatus = paneStatus({ agent_status: agentStatus, ...(backgroundWait ? { background_wait: true as const } : {}) });
   const statusCompact = composerStatusCompact(cardWidth);
-  const sendShown = sending || composerSendShown({ working: isWorking, text });
+  const sendShown = hasComments || sending || composerSendShown({ working: isWorking, text });
   const hint = composerStatusHint({ uploading, connected, text, noRoom: roomless !== undefined });
   const model = metadata?.model ? modelLabel(metadata.model) : null;
   const modelShown = Boolean(metadata?.model || metadata?.reasoning_effort);
@@ -1098,7 +1113,7 @@ export function Composer({
               not tell empty, sent over only in the same Claude terminal the refusal was for */}
           {typeof note === "object" && ("failure" in note
             ? offersRetry(note.failure) && <button type="button" className="composer-note-action" disabled={!connected} onClick={() => retryUpload(note.attachment)}>{t("Try again")}</button>
-            : <button type="button" className="composer-note-action" disabled={!connected || uploading || roomless !== undefined || sending || text.trim().length === 0}
+            : <button type="button" className="composer-note-action" disabled={!connected || uploading || roomless !== undefined || sending || (!hasComments && text.trim().length === 0)}
               onClick={() => "draft" in note ? send(note.draft) : send(undefined, true)}>{"draft" in note ? t("Clear it and send") : t("Send anyway")}</button>)}
         </div>
       )}
@@ -1417,7 +1432,7 @@ export function Composer({
               aria-label={t("Send message")}
               title={sending ? t("Sending…") : t("Send message")}
               aria-busy={sending || undefined}
-              disabled={!connected || uploading || roomless !== undefined || sending || text.trim().length === 0}
+              disabled={!connected || uploading || roomless !== undefined || sending || (!hasComments && text.trim().length === 0)}
               // focus stays in the text box: leaving it closes the soft keyboard and moves the button
               // out from under the tap before the click lands
               onPointerDown={(event) => event.preventDefault()}
