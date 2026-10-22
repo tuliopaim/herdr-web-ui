@@ -13,6 +13,12 @@ const xtermSource = normalizePath(buildXtermSource(fileURLToPath(new URL(".", im
 let revision: string | null = null;
 try { revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* non-Git build */ }
 
+// A dev server proxies /api to whatever herdr server is running, usually one built from another
+// commit. The client's reload check then reads that as "server updated, reload", which no reload
+// of the dev page can clear. So on `dev` the client reports no revision and skips the check;
+// `build` keeps the real one.
+const defineRevision = (command: "build" | "serve") => (command === "build" ? revision : null);
+
 // agentSvgMarks.ts carries LobeHub Icons paths (MIT): their notice ships with every built client
 const thirdPartyNotices: Plugin = {
   name: "third-party-notices",
@@ -30,11 +36,11 @@ const buildRevision: Plugin = {
   },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   // the theme boot script is emitted before compressedAssets and serviceWorkerBuild read the bundle
   plugins: [react(), thirdPartyNotices, buildRevision, themeBootstrapBuild(), compressedAssets(), serviceWorkerBuild()],
   define: {
-    __APP_REVISION__: JSON.stringify(revision),
+    __APP_REVISION__: JSON.stringify(defineRevision(command)),
     __APP_VERSION__: JSON.stringify((JSON.parse(readFileSync("package.json", "utf8")) as { version: string }).version),
     // test hooks (src/lib/crashProbe.ts): on only in the browser lane's demo build (scripts/demo-build.ts)
     __HERDR_TEST_HOOKS__: JSON.stringify(process.env["HERDR_TEST_HOOKS"] === "1"),
@@ -58,4 +64,4 @@ export default defineConfig({
     { find: /^common\//, replacement: `${xtermSource}/common/` },
     { find: "@shared", replacement: new URL("./shared", import.meta.url).pathname },
   ] },
-});
+}));
