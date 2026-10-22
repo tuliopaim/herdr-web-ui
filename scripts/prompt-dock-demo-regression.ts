@@ -324,6 +324,12 @@ try {
         const { page, errors, close, shot } = await open({ width: 390, height: 844, touch: true, prompt: pi });
         try {
           const field = page.locator(".prompt-card textarea");
+          const heading = await page.locator(".prompt-card-header h2").boundingBox();
+          const fold = await page.getByRole("button", { name: "Collapse question" }).boundingBox();
+          assert.equal(await page.locator(".prompt-card-header h2").innerText(), pi.question, "the question occupies the header instead of a blank row");
+          assert.ok(heading && fold && heading.y < fold.y + fold.height && heading.y + heading.height > fold.y, "the question and collapse control share a row");
+          assert.ok(fold!.width >= 44 && fold!.height >= 44, "the collapse control keeps its phone touch target");
+
           assert.equal(await page.locator(".composer").isVisible(), false, "the custom answer replaces the competing composer without unmounting its draft");
           assert.equal(await page.locator(".prompt-card-options").getByRole("button", { name: /Back/ }).count(), 0, "Back is navigation, not a numbered option");
           assert.equal(await page.locator(".prompt-card-custom-label").count(), 0, "the Pi editor has no redundant own-answer caption");
