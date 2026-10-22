@@ -2912,3 +2912,37 @@ button {
 button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Reading mode keeps the transcript and input mounted. Only local chrome is hidden. */
+.app.is-reading {
+  --sidebar-shown-w: 0px;
+  --header-over: 0px !important;
+}
+.app.is-reading > .app-header,
+.app.is-reading .sidebar,
+.app.is-reading .scrim,
+.app.is-reading .tab-strip-row,
+.app.is-reading .tab-strip,
+.app.is-reading .pane-slot-bar {
+  display: none;
+}
+.reading-mode-exit,
+.reading-question {
+  position: fixed;
+  z-index: var(--z-header);
+  bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
+  background: var(--surface-elevated);
+  border: var(--hairline) solid var(--border-strong);
+  box-shadow: var(--shadow-raised);
+}
+.reading-mode-exit {
+  right: max(var(--space-3), env(safe-area-inset-right, 0px));
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  border-radius: var(--radius-pill);
+}
+.reading-question {
+  left: max(var(--space-3), env(safe-area-inset-left, 0px));
+  min-height: var(--touch-min);
+  max-width: calc(100vw - 6rem);
+}

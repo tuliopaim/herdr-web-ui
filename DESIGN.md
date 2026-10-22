@@ -2630,3 +2630,16 @@ The values are the ones in `src/styles.css`.
 Pi questions put the question text beside the collapse control, following Claude Code's compact
 inline-question layout rather than reserving a blank title row. The custom editor keeps Back
 in that same row; the collapse control retains its full touch target.
+
+### Reading mode
+
+More → Reading mode temporarily hides the app header, workspace tabs, sidebar, question
+card and message input, giving the transcript or terminal the available height. Inspired
+by VS Code's Zen Mode (https://code.visualstudio.com/docs/getstarted/userinterface#_zen-mode),
+but without requesting browser fullscreen or restoring the mode on reload. The floating
+safe-area-aware exit button and Escape restore the controls. A waiting question gets a
+separate button that leaves reading mode; it never opens the answer card automatically.
+Inputs, attachments and transcript stay mounted, retaining drafts and the existing scroll
+intent: new output does not force a reader away from older messages. The mode is local React
+state, not a preference synchronized to another browser. Both floating controls have mobile
+touch targets; leaving returns keyboard focus to More without raising the soft keyboard.

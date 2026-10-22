@@ -430,6 +430,14 @@
   content-visibility: hidden;
 }
 
+.terminal-stack.is-reading > .composer,
+.terminal-stack.is-reading > .prompt-dock,
+.terminal-stack.is-reading > .composer-queue,
+.terminal-stack.is-reading > .terminal-input-slot,
+.terminal-stack.is-reading > .key-bar {
+  display: none;
+}
+
 /* A terminal command's peek (lib/terminalPeek.ts): the grid shows over the chat it covered, which stays
    mounted and keeps its layout and scroll position (hidden, not removed). A hairline in the accent
    marks the terminal as a passing view; nothing moves in or out */
