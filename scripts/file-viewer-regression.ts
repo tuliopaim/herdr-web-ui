@@ -30,7 +30,7 @@ const openFiles = async (page: import("playwright-core").Page) => {
   else await runMoreItem(page, "Browse files");
 };
 
-const root = mkdtempSync(join(tmpdir(), "herdr-web-ui-file-back-"));
+const root = mkdtempSync(join(tmpdir(), "ovis-file-back-"));
 const codexHome = join(root, "codex-home");
 const thread = "01a0c7a1-56d9-7e20-9f08-f7a2d973bc11";
 mkdirSync(join(codexHome, "sessions"), { recursive: true });
@@ -124,7 +124,7 @@ try {
   const init = Bun.spawn(["git", "init", "-q", "-b", "main", root], { stdout: "pipe", stderr: "pipe" });
   assert.equal(await init.exited, 0, await new Response(init.stderr).text());
   writeFileSync(join(root, ".gitignore"), "*\n!notes.txt\n!preview.webm\n");
-  const created = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-file-back" });
+  const created = await workspaceCreate({ cwd: root, label: "ovis-test-file-back" });
   workspace = created.workspace.workspace_id;
   const pane = created.root_pane.pane_id;
   await herdrRpc("pane.send_text", { pane_id: pane, text: `${standIn} resume ${thread}\n` });
@@ -649,7 +649,7 @@ try {
 
   // The file beside the pane is the pane's: selecting another pane closes it, and the move takes
   // the file's entry over, so Back returns to the first pane without the file (DESIGN.md)
-  const other = await workspaceCreate({ cwd: root, label: "herdr-web-ui-test-file-back-other" });
+  const other = await workspaceCreate({ cwd: root, label: "ovis-test-file-back-other" });
   otherWorkspace = other.workspace.workspace_id;
   const otherPane = other.root_pane.pane_id;
   const selectedPane = () => page.evaluate(() => new URLSearchParams(location.search).get("pane"));
@@ -1162,6 +1162,40 @@ try {
       if (process.env.UI_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.UI_EVIDENCE_DIR, `source-line-${width}-${theme}.png`) });
       await context.close();
       console.log(`PASS Markdown inline/new tab/reload/raw/download: ${width}px ${theme}`);
+    }
+  }
+  // The copied read link is a document-only page, not a modal. Its frame must constrain the
+  // body on both sides of the mobile header breakpoint; the page is not a second scroll owner.
+  // Since the body is then the one scroll box, it opens with the focus, so the keys scroll it
+  // before any click; and the bound is the screen's only, so printing it prints every page.
+  for (const width of [1280, 601, 600, 390]) {
+    const readerContext = await browser.newContext({ viewport: { width, height: 800 } });
+    try {
+      const readerPage = await readerContext.newPage();
+      await readerPage.goto(`${origin}/?read=${encodeURIComponent(join(root, "long.md"))}`);
+      const readerBody = readerPage.locator(".file-reader-body");
+      await readerBody.locator(".file-viewer-markdown p").first().waitFor();
+      const geometry = await readerBody.evaluate((element) => ({ height: element.clientHeight, scrollHeight: element.scrollHeight, viewport: innerHeight }));
+      assert.ok(geometry.height < geometry.viewport, `${width}px: standalone reader body is bounded by the viewport`);
+      assert.ok(geometry.scrollHeight > geometry.height, `${width}px: long document has an internal scroll range`);
+      assert.equal(await readerBody.evaluate((element) => element === document.activeElement), true, `${width}px: the opened document holds the focus`);
+      await readerPage.keyboard.press("PageDown");
+      await readerPage.waitForFunction(() => (document.querySelector(".file-reader-body")?.scrollTop ?? 0) > 0);
+      assert.equal(await readerPage.evaluate(() => window.scrollY), 0, `${width}px: Page Down scrolls the document body, not the page`);
+      await readerBody.evaluate((element) => { element.scrollTop = 0; });
+      if (width === 1280) {
+        // the print layout is the paper's, not the window's: one width is enough
+        const pdf = (await readerPage.pdf({ format: "A4" })).toString("latin1");
+        const printed = pdf.match(/\/Type\s*\/Page(?!s)\b/g)?.length ?? 0;
+        assert.ok(printed > 10, `the printed document runs over its pages, not one screen cut off (${printed} pages)`);
+      }
+      await readerPage.mouse.move(width / 2, 400);
+      await readerPage.mouse.wheel(0, 600);
+      await readerPage.waitForFunction(() => (document.querySelector(".file-reader-body")?.scrollTop ?? 0) > 0);
+      assert.equal(await readerPage.evaluate(() => window.scrollY), 0, `${width}px: wheel scroll belongs to the document body, not the page`);
+      console.log(`PASS standalone Markdown reader scroll ownership and keys${width === 1280 ? ", print" : ""}: ${width}px`);
+    } finally {
+      await readerContext.close();
     }
   }
   // A file-only link owns its PC even if this browser last selected another one.
