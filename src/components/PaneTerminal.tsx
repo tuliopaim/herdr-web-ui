@@ -3612,7 +3612,7 @@ export function PaneTerminal({
           log: a prompt that arrives is announced, as it was there. */}
       {readingMode && active && presented && answering !== null && <button type="button" className="btn reading-question" onClick={onLeaveReadingMode}>{t("Question waiting")}</button>}
       {presented && paneId !== null && chatMounted && !secretActive && !observing && !ended && (
-        <ResponseComments key={`comments:${paneStorageId(machineId, paneId)}`} owner={paneStorageId(machineId, paneId)} root={stackRef} reading={readingMode} onReview={onLeaveReadingMode} />
+        <ResponseComments paneId={paneId} key={`comments:${paneStorageId(machineId, paneId)}`} owner={paneStorageId(machineId, paneId)} root={stackRef} reading={readingMode} onReview={onLeaveReadingMode} />
       )}
       {presented && paneId !== null && chatMounted && <div className="prompt-dock" ref={setPromptDock} aria-live="polite" inert={peek !== null || undefined} />}
       {/* the composer belongs to the chat lens: in terminal mode the grid itself is

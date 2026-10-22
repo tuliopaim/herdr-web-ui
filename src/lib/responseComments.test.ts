@@ -17,6 +17,21 @@ describe("response comments", () => {
   it("supports comments-only sends without a blank message prefix", () => {
     expect(commentsMessage("  ", [first]).startsWith("Address my comments")).toBe(true);
   });
+  it("sends image paths with their comment, not local previews", () => {
+    const image = { id: "image", name: "screen.png", path: "/tmp/screen.png", preview: "data:image/png;base64,local" };
+    const note = { ...first, comment: "", images: [image] };
+    expect(commentsMessage("", [note])).toContain("@/tmp/screen.png");
+    expect(commentsMessage("", [note])).not.toContain(image.preview);
+    const store = new ResponseCommentStore();
+    store.save("pane", note);
+    const sent = store.read("pane");
+    const edited = { ...note, images: [] };
+    store.save("pane", edited);
+    store.settle("pane", sent);
+    expect(store.read("pane")).toEqual([edited]);
+    store.remove("pane", edited.id);
+    expect(store.read("pane")).toEqual([]);
+  });
   it("isolates panes and machines and supports editing and removing", () => {
     const store = new ResponseCommentStore();
     store.save("local:p1", first);

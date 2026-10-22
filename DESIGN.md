@@ -2665,3 +2665,18 @@ the composer without sending. Queues survive pane switches during the page lifet
 reload discards comments, and nothing is restored or sent automatically. This initial
 version uses native browser selection, not a replacement for Android's selection menu;
 actual Android selection-handle behavior still needs device verification.
+
+### Response comment editor and images
+
+The response comment editor follows the Claude Code Desktop prompt-box attachment pattern
+([Add files and context](https://code.claude.com/docs/en/desktop#add-files-and-context-to-prompts)):
+images can be picked or dropped beside the text rather than managed in another dialog.
+It also accepts clipboard images. Its typography, inset editor and rounded controls follow
+our composer and Pi question-answer editor. The quote is a compact context block, leaving
+more room for the comment and keeping Save visible in short viewports.
+
+Each saved comment owns its uploaded image paths and local thumbnails. Image-only comments
+are valid. Editing or cancelling an edit does not mutate the saved attachments. Failed uploads
+leave text and earlier successful images intact; failed sends retain the saved comment and
+images. Paths are sent with their comment through the existing pane image upload route;
+thumbnail data is never sent as message text. These are page-lifetime drafts, not reload storage.
