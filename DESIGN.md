@@ -1690,6 +1690,13 @@ Alert rows of the table above from the `--droplet-*` roles in `src/styles.css`.
   Collapse/Expand keeps the text and attachments while the transcript is read; a new question
   discards them. Dismiss closes the choice menu; Back returns from the editor without answering.
   Past `ask_user` calls use the transcript's existing question list.
+  Following [Claude Code's separate dialog-answer and transcript controls](https://code.claude.com/docs/en/interactive-mode),
+  the open Pi editor replaces the regular composer visually, keeping its message draft mounted.
+  Folding restores the composer and reduces the question to a labeled header row, without
+  discarding the answer. Back is an unnumbered navigation button. Attachments wrap as thumbnails
+  with remove buttons rather than repeating status labels; their status remains available to
+  screen readers. The answer toolbar stays at the bottom of the scrolling card, whose height
+  uses the keyboard-adjusted app viewport. This is a browser adaptation, not copied app code.
 - Placement: docked on the composer's column, directly above the input card, on the card's width
   and gutter (`--chat-w`). It is not part of the transcript and does not scroll with it. The
   stack from the top is transcript, held messages (folded to their caption while a card is

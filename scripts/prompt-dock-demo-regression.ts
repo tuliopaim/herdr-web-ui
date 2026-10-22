@@ -321,20 +321,33 @@ try {
       {
         const pi = { id: "pi-custom", agent: "pi", kind: "question", title: "Question", question: "Which account?", body: null,
           options: [{ label: "Type your answer", description: null }, { label: "Back", description: null }], multi_select: false, custom_option_index: 0 };
-        const { page, errors, close } = await open({ width: 390, height: 844, touch: true, prompt: pi });
+        const { page, errors, close, shot } = await open({ width: 390, height: 844, touch: true, prompt: pi });
         try {
           const field = page.locator(".prompt-card textarea");
+          assert.equal(await page.locator(".composer").isVisible(), false, "the custom answer replaces the competing composer without unmounting its draft");
+          assert.equal(await page.locator(".prompt-card-options").getByRole("button", { name: /Back/ }).count(), 0, "Back is navigation, not a numbered option");
           await field.fill("Joint account\nUse this screenshot");
           await field.press("Enter");
           assert.equal((await answersOf(page)).length, 0, "Enter adds a line rather than sending a Pi answer");
           await page.locator('.prompt-card input[type="file"]').setInputFiles({ name: "answer.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII=", "base64") });
-          await page.locator(".prompt-card-attachment").getByText("Attached", { exact: true }).waitFor();
+          await page.locator('.prompt-card-attachment[data-uploaded="true"]').waitFor();
           await page.getByRole("button", { name: "Collapse question", exact: true }).click();
           assert.equal(await field.isVisible(), false);
+          assert.equal(await page.locator(".composer").isVisible(), true, "folding restores the regular composer");
+          assert.ok((await page.locator(".prompt-card").boundingBox())!.height <= 80, "the folded question is a compact row");
           assert.equal((await answersOf(page)).length, 0, "collapsing neither dismisses nor answers");
+          await page.locator(".composer-text").fill("Unsent message draft");
           await page.getByRole("button", { name: "Expand question", exact: true }).click();
+          assert.equal(await page.locator(".composer-text").inputValue(), "Unsent message draft", "the hidden regular composer keeps its unsent message");
           assert.ok((await field.inputValue()).startsWith("Joint account\nUse this screenshot"));
           assert.equal(await page.locator(".prompt-card-attachment img").count(), 1, "the image survives folding");
+          await field.focus();
+          await page.evaluate(() => { const keyboard = (navigator as unknown as { virtualKeyboard: EventTarget & { height: number } }).virtualKeyboard; keyboard.height = 340; keyboard.dispatchEvent(new Event("geometrychange")); });
+          await page.waitForFunction(() => document.documentElement.hasAttribute("data-keyboard"));
+          await page.locator(".prompt-card").getByRole("button", { name: "Send", exact: true }).scrollIntoViewIfNeeded();
+          assert.deepEqual(await hitOf(page, ".prompt-card-answer-actions .btn-primary", "bottom"), { hit: "self", visible: true }, "Send stays reachable above the simulated phone keyboard");
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, "the answer and thumbnails do not overflow the phone");
+          await shot("pi-image-answer-keyboard");
           await page.locator(".prompt-card").getByRole("button", { name: "Send", exact: true }).click();
           await page.locator(".prompt-card textarea").waitFor({ state: "detached" });
           assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "pi-custom", custom_text: "@/tmp/demo/.herdr-web-ui/answer.png Joint account\nUse this screenshot" }]);
@@ -347,7 +360,7 @@ try {
             data.items.add(new File([new Uint8Array([1, 2, 3])], "pasted.png", { type: "image/png" }));
             node.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
           });
-          await page.locator(".prompt-card-attachment").getByText("Attached", { exact: true }).waitFor();
+          await page.locator('.prompt-card-attachment[data-uploaded="true"]').waitFor();
           await page.getByRole("button", { name: "Remove pasted.png", exact: true }).click();
           await page.locator(".prompt-card textarea").fill("No image needed");
           await page.locator(".prompt-card textarea").press("Control+Enter");

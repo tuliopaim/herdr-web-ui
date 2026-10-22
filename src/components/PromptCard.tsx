@@ -143,12 +143,13 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
     const text = label.replace(/\s*\(recommended\)$/i, "");
     return { text, recommended: text !== label };
   };
+  const piEditor = prompt.agent === "pi" && prompt.custom_option_index !== null;
   const hasChoices = prompt.options.some((_, index) => index !== prompt.custom_option_index);
   const openFile = useContext(OpenFileContext);
   const planFile = prompt.plan_file;
 
   return (
-    <section className={`prompt-card${folded ? " is-folded" : ""}`} ref={cardRef} role="region" aria-label={t("Agent is asking")}
+    <section className={`prompt-card${folded ? " is-folded" : ""}${piEditor ? " is-pi-editor" : ""}`} ref={cardRef} role="region" aria-label={t("Agent is asking")}
       onKeyDown={(event) => { down.current = null; keyed.current = event.key === "Enter" || event.key === " " ? event.target : null; }}
       onPointerDown={(event) => {
         keyed.current = null;
@@ -156,6 +157,12 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
         down.current = button === null ? null : { target: button, pointerType: event.pointerType };
       }}>
       <header className="prompt-card-header">
+        {piEditor && !folded && (
+          <button type="button" className="btn btn-ghost prompt-card-back" disabled={pending || uploading}
+            onClick={(event) => void answer({ option_index: prompt.options.findIndex((option) => option.label === "Back") }, event)}>
+            <ArrowLeft aria-hidden="true" />{t("Back")}
+          </button>
+        )}
         {prompt.can_step_back && (
           <button
             type="button"
@@ -171,7 +178,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
         )}
         {/* read, not drawn: the title is the card's one red */}
         <span className="visually-hidden">{t("input needed")}</span>
-        <h2>{prompt.title}</h2>
+        <h2>{folded ? t("Agent is asking") : prompt.title}</h2>
         {/* the card shows a plan in its short box; the file viewer draws the whole of it as Markdown */}
         {planFile && openFile && (
           <button type="button" className="btn btn-ghost prompt-card-plan-file" onClick={() => openFile(planFile)}>
@@ -252,7 +259,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
            read (Chromium), and the status line below has to be */
         <div className="prompt-card-options" role={prompt.multi_select ? "group" : undefined} aria-label={prompt.multi_select ? prompt.question : undefined} aria-busy={pending}>
           {prompt.options.map((option, index) => {
-            if (index === prompt.custom_option_index) return null;
+            if (index === prompt.custom_option_index || (piEditor && option.label === "Back")) return null;
             const { text, recommended } = labelOf(option.label);
             const content = (
               <span className="prompt-card-option-text">
