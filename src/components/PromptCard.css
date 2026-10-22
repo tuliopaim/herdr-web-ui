@@ -623,3 +623,83 @@
 .prompt-card-answer-actions > .btn:last-child {
   margin-inline-start: auto;
 }
+
+/* Pi's question is part of the input area, not transcript prose. Keep its type and surface
+   aligned with Composer even when the transcript uses a custom font or scale. */
+.prompt-card.is-pi-question {
+  font-family: var(--font-ui);
+  border-color: var(--border);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-2) var(--space-4) 0;
+  gap: var(--space-2);
+}
+
+.is-pi-question .prompt-card-header h2 {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.is-pi-question .prompt-card-question {
+  font-size: var(--fs-sm);
+}
+
+.is-pi-question .prompt-card-option {
+  padding-inline: var(--space-2);
+}
+
+.is-pi-question .prompt-card-back {
+  height: var(--control-h);
+  padding-inline: 0 var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+/* Back already identifies the editor. Keep its heading accessible without a second caption. */
+.is-pi-editor:not(.is-folded) .prompt-card-header h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.is-pi-question .prompt-card-image-answer textarea {
+  font-family: var(--font-ui);
+  font-size: max(var(--fs-input), calc(var(--fs-chat) * var(--chat-scale, 1)));
+  line-height: var(--lh-base);
+  padding: var(--space-3) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-height: calc(2lh + var(--space-6));
+  resize: none;
+}
+
+.is-pi-question .prompt-card-image-answer textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.is-pi-editor:not(.is-folded):focus-within {
+  border-color: var(--accent);
+}
+
+.is-pi-question .prompt-card-answer-actions {
+  align-items: center;
+  padding-block: var(--space-1);
+}
+
+.is-pi-question .prompt-card-answer-actions > .icon-button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-dim);
+}
+
+/* A folded question is the top row of the composer, not a second floating card. */
+.prompt-card.is-pi-question.is-folded {
+  padding-block: 0;
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}

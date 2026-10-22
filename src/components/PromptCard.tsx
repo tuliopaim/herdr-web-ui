@@ -149,7 +149,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
   const planFile = prompt.plan_file;
 
   return (
-    <section className={`prompt-card${folded ? " is-folded" : ""}${piEditor ? " is-pi-editor" : ""}`} ref={cardRef} role="region" aria-label={t("Agent is asking")}
+    <section className={`prompt-card${prompt.agent === "pi" ? " is-pi-question" : ""}${folded ? " is-folded" : ""}${piEditor ? " is-pi-editor" : ""}`} ref={cardRef} role="region" aria-label={t("Agent is asking")}
       onKeyDown={(event) => { down.current = null; keyed.current = event.key === "Enter" || event.key === " " ? event.target : null; }}
       onPointerDown={(event) => {
         keyed.current = null;
@@ -295,9 +295,9 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
       )}
       {prompt.custom_option_index !== null && (
         <div className="prompt-card-custom">
-          {hasChoices && <span className="prompt-card-custom-label" id={customLabelId}>{prompt.agent === "opencode" && prompt.multi_select ? t("Custom answer") : t("Or type your own answer")}</span>}
+          {hasChoices && !piEditor && <span className="prompt-card-custom-label" id={customLabelId}>{prompt.agent === "opencode" && prompt.multi_select ? t("Custom answer") : t("Or type your own answer")}</span>}
           {prompt.agent === "pi" ? <PiPromptAnswer paneId={paneId} disabled={pending} defaultText={prompt.default_custom_text ?? ""}
-            label={hasChoices ? undefined : t("Custom answer")} labelledBy={hasChoices ? customLabelId : undefined}
+            label={t("Custom answer")}
             placeholder={prompt.options[prompt.custom_option_index]?.label ?? t("Type an answer")}
             onUploading={setUploading} onSend={(text, press) => void answer({ custom_text: text }, press)} /> : <div className="prompt-card-custom-row">
             <input className="input" value={custom} disabled={pending || uploading} placeholder={prompt.options[prompt.custom_option_index]?.label ?? t("Type an answer")} aria-label={hasChoices ? undefined : t("Custom answer")} aria-labelledby={hasChoices ? customLabelId : undefined} onChange={(event) => setCustom(event.currentTarget.value)} onKeyDown={(event) => {

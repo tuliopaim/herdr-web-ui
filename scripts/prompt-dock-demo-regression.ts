@@ -326,6 +326,13 @@ try {
           const field = page.locator(".prompt-card textarea");
           assert.equal(await page.locator(".composer").isVisible(), false, "the custom answer replaces the competing composer without unmounting its draft");
           assert.equal(await page.locator(".prompt-card-options").getByRole("button", { name: /Back/ }).count(), 0, "Back is navigation, not a numbered option");
+          assert.equal(await page.locator(".prompt-card-custom-label").count(), 0, "the Pi editor has no redundant own-answer caption");
+          const editorStyle = await field.evaluate((node) => {
+            const style = getComputedStyle(node);
+            return { border: style.borderTopWidth, background: style.backgroundColor, font: style.fontFamily };
+          });
+          assert.equal(editorStyle.border, "0px", "the editor is not a nested input box");
+          assert.equal(editorStyle.background, "rgba(0, 0, 0, 0)", "the editor shares the question surface");
           await field.fill("Joint account\nUse this screenshot");
           await field.press("Enter");
           assert.equal((await answersOf(page)).length, 0, "Enter adds a line rather than sending a Pi answer");
@@ -335,6 +342,16 @@ try {
           assert.equal(await field.isVisible(), false);
           assert.equal(await page.locator(".composer").isVisible(), true, "folding restores the regular composer");
           assert.ok((await page.locator(".prompt-card").boundingBox())!.height <= 80, "the folded question is a compact row");
+          const foldedStyle = await page.locator(".prompt-card").evaluate((node) => {
+            const card = getComputedStyle(node);
+            const composer = getComputedStyle(document.querySelector(".composer-surface")!);
+            return { lowerCorner: card.borderBottomLeftRadius, upperCorner: composer.borderTopLeftRadius,
+              cardFont: card.fontFamily, composerFont: getComputedStyle(document.querySelector(".composer-text")!).fontFamily };
+          });
+          assert.equal(foldedStyle.lowerCorner, "0px", "the folded strip joins the composer");
+          assert.equal(foldedStyle.upperCorner, "0px", "the composer joins the folded strip");
+          assert.equal(foldedStyle.cardFont, foldedStyle.composerFont, "the question and composer share a font");
+          await shot("pi-folded-composer");
           assert.equal((await answersOf(page)).length, 0, "collapsing neither dismisses nor answers");
           await page.locator(".composer-text").fill("Unsent message draft");
           await page.getByRole("button", { name: "Expand question", exact: true }).click();
