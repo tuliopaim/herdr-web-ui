@@ -1500,17 +1500,17 @@
    still shrinks as the card grows, so a reader at the end stays at the end. Raised over the
    transcript, which is positioned (z-index 1) and comes first. */
 @media (max-width: 768px) {
-  .terminal-stack.is-chat:not(.is-greeted):has(> .terminal-surface + .prompt-dock:empty + .composer:not(.has-notices)) {
+  .terminal-stack.is-chat:not(.is-greeted):not(:has(> .response-comments .response-comments-queue)):has(> :is(.terminal-surface, .terminal-surface + .response-comments) + .prompt-dock:empty + .composer:not(.has-notices)) {
     --composer-over: var(--space-8);
   }
 
-  .terminal-stack.is-chat:not(.is-greeted) > .terminal-surface + .prompt-dock:empty + .composer:not(.has-notices) {
+  .terminal-stack.is-chat:not(.is-greeted):not(:has(> .response-comments .response-comments-queue)) > :is(.terminal-surface, .terminal-surface + .response-comments) + .prompt-dock:empty + .composer:not(.has-notices) {
     z-index: 1;
     margin-top: calc(-1 * var(--composer-over));
     background: linear-gradient(transparent, var(--bg) var(--composer-over));
   }
 
-  .terminal-stack.is-chat:not(.is-greeted) > .terminal-surface + .prompt-dock:empty + .composer:not(.has-notices) .composer-surface {
+  .terminal-stack.is-chat:not(.is-greeted):not(:has(> .response-comments .response-comments-queue)) > :is(.terminal-surface, .terminal-surface + .response-comments) + .prompt-dock:empty + .composer:not(.has-notices) .composer-surface {
     background: var(--card-glass);
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);

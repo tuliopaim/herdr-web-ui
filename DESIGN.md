@@ -2643,3 +2643,25 @@ Inputs, attachments and transcript stay mounted, retaining drafts and the existi
 intent: new output does not force a reader away from older messages. The mode is local React
 state, not a preference synchronized to another browser. Both floating controls have mobile
 touch targets; leaving returns keyboard focus to More without raising the soft keyboard.
+
+### Comments on AI responses
+
+Following the quote-and-comment review pattern in Claude Code's desktop diff review
+(https://code.claude.com/docs/en/desktop), response comments pair a selected passage with
+a user-written note. Unlike diff review, selections come from rendered assistant answers,
+not tool output, reasoning, or user messages. Native selection and Copy remain available;
+a separate Add comment control opens a native modal with the quoted context and editor.
+
+Saved comments form a pane-and-machine-local queue separate from the message draft.
+Users can review, edit, or remove notes before explicitly sending them, with or without
+a message. The message goes first, followed by ordered quote/comment pairs; each quote
+is blockquoted and marked as context rather than instructions. A confirmed send clears
+only the exact comment versions submitted, preserving edits made while sending. Failures
+retain both drafts. The combined payload uses the existing character limit and delivery
+policy; comments cannot be sent as interactive-question answers.
+
+Reading mode keeps a floating comment count and Review and send action, which restores
+the composer without sending. Queues survive pane switches during the page lifetime;
+reload discards comments, and nothing is restored or sent automatically. This initial
+version uses native browser selection, not a replacement for Android's selection menu;
+actual Android selection-handle behavior still needs device verification.

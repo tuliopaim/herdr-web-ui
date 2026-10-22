@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { ResponseComments } from "./ResponseComments.tsx";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -3610,6 +3611,9 @@ export function PaneTerminal({
           it. It is a live region of its own, since the card is no longer inside the transcript's
           log: a prompt that arrives is announced, as it was there. */}
       {readingMode && active && presented && answering !== null && <button type="button" className="btn reading-question" onClick={onLeaveReadingMode}>{t("Question waiting")}</button>}
+      {presented && paneId !== null && chatMounted && !secretActive && !observing && !ended && (
+        <ResponseComments key={`comments:${paneStorageId(machineId, paneId)}`} owner={paneStorageId(machineId, paneId)} root={stackRef} reading={readingMode} onReview={onLeaveReadingMode} />
+      )}
       {presented && paneId !== null && chatMounted && <div className="prompt-dock" ref={setPromptDock} aria-live="polite" inert={peek !== null || undefined} />}
       {/* the composer belongs to the chat lens: in terminal mode the grid itself is
           the input surface (key bar included), so a second box would only duplicate it */}
@@ -3647,6 +3651,7 @@ export function PaneTerminal({
               <p className="composer-greeting-where">{machineName && <bdi>{machineName}</bdi>}{machineName && cwd ? " · " : ""}{cwd && <bdi>{cwd}</bdi>}</p>
             </div>
           ) : null}
+          allowComments={answering === null}
           onSend={composerSend}
           onAbort={abortTurn}
           onUploadImage={uploadImage}
