@@ -6,6 +6,10 @@
  * braces keep their English names.
  */
 export const KO: Record<string, string> = {
+  "Reading mode": "읽기 모드",
+  "Leave reading mode": "읽기 모드 종료",
+  "Question waiting": "대기 중인 질문",
+
   "Could not load sign-in options": "로그인 방법을 불러오지 못했습니다",
   "On the server PC": "서버 PC에서 로그인",
   "Install {cli} on the server PC first.": "먼저 서버 PC에 {cli}를 설치하세요.",

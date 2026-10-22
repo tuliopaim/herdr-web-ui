@@ -91,6 +91,8 @@ const plainError = (cause: unknown): string => {
 };
 
 export interface PaneTerminalProps {
+  readingMode?: boolean;
+  onLeaveReadingMode?: () => void;
   /** App's content lifetime, including the current finish identity. */
   presentationKey?: string;
   finishEpoch?: string;
@@ -167,6 +169,8 @@ export interface PaneTerminalProps {
 const heldRowNotes = new Map<string, { owner: string; id: string; text: string }>();
 
 export function PaneTerminal({
+  readingMode = false,
+  onLeaveReadingMode,
   presentationKey,
   finishEpoch,
   finishId,
@@ -2878,7 +2882,7 @@ export function PaneTerminal({
 
   return (
     // data-direct-typing: xterm's own field raises the soft keyboard here (lib/viewport.ts)
-    <div ref={stackRef} className={`terminal-stack${chatView ? " is-chat" : ""}${greeted ? " is-greeted" : ""}`} data-pane-owner={paneId === null ? undefined : paneStorageId(machineId, paneId)} data-direct-typing={coarse && directTyping && !chatView ? "" : undefined}
+    <div ref={stackRef} className={`terminal-stack${readingMode ? " is-reading" : ""}${chatView ? " is-chat" : ""}${greeted ? " is-greeted" : ""}`} data-pane-owner={paneId === null ? undefined : paneStorageId(machineId, paneId)} data-direct-typing={coarse && directTyping && !chatView ? "" : undefined}
       data-pane-content={!chatView && paneId !== null && active && presented && shown && connected && outputReady && parsedTarget === outputTarget && !held && !ended && !released && !unsupported && !outputError ? presentationKey : undefined}>
       {paneId === null && restoreError !== null && (
         <div className="terminal-placeholder is-restore-error" role="status">
@@ -3143,6 +3147,7 @@ export function PaneTerminal({
           open), directly over the input card, on the same column. ChatView renders the card into
           it. It is a live region of its own, since the card is no longer inside the transcript's
           log: a prompt that arrives is announced, as it was there. */}
+      {readingMode && active && presented && answering !== null && <button type="button" className="btn reading-question" onClick={onLeaveReadingMode}>{t("Question waiting")}</button>}
       {presented && paneId !== null && chatView && <div className="prompt-dock" ref={setPromptDock} aria-live="polite" />}
       {/* the composer belongs to the chat lens: in terminal mode the grid itself is
           the input surface (key bar included), so a second box would only duplicate it */}
@@ -3153,7 +3158,7 @@ export function PaneTerminal({
           cwd={cwd}
           branch={branchWord === DETACHED ? t("Detached HEAD") : branchWord}
           worktreeRepo={worktreeRepo}
-          autoFocus={active && !autoSelected && !coarse}
+          autoFocus={active && !readingMode && !autoSelected && !coarse}
           active={active}
           agent={agent}
           agentStatus={agentStatus}

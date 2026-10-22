@@ -385,3 +385,11 @@
 .terminal-stack.is-chat .pane-terminal {
   content-visibility: hidden;
 }
+
+.terminal-stack.is-reading > .composer,
+.terminal-stack.is-reading > .prompt-dock,
+.terminal-stack.is-reading > .composer-queue,
+.terminal-stack.is-reading > .terminal-input-slot,
+.terminal-stack.is-reading > .key-bar {
+  display: none;
+}

@@ -10,6 +10,10 @@
  * Placeholders in braces keep their English names.
  */
 export const ZH: Record<string, string> = {
+  "Reading mode": "阅读模式",
+  "Leave reading mode": "退出阅读模式",
+  "Question waiting": "有问题待回答",
+
   "Could not load sign-in options": "无法加载登录方式",
   "On the server PC": "在服务器 PC 上登录",
   "Install {cli} on the server PC first.": "请先在服务器 PC 上安装 {cli}。",

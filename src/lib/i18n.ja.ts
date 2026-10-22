@@ -8,6 +8,10 @@
  * in English. Placeholders in braces keep their English names.
  */
 export const JA: Record<string, string> = {
+  "Reading mode": "閲覧モード",
+  "Leave reading mode": "閲覧モードを終了",
+  "Question waiting": "質問が待っています",
+
   "Could not load sign-in options": "ログイン方法を読み込めませんでした",
   "On the server PC": "サーバーPCでログイン",
   "Install {cli} on the server PC first.": "先にサーバーPCに{cli}をインストールしてください。",

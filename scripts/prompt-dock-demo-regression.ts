@@ -344,6 +344,41 @@ try {
           assert.equal((await answersOf(page)).length, 0, "Enter adds a line rather than sending a Pi answer");
           await page.locator('.prompt-card input[type="file"]').setInputFiles({ name: "answer.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII=", "base64") });
           await page.locator('.prompt-card-attachment[data-uploaded="true"]').waitFor();
+          // Reading mode changes visibility, not the pane/input lifetime.
+          const transcriptHeight = (await page.locator(".terminal-surface").boundingBox())?.height;
+          await page.locator(".header-more-button").click();
+          await page.getByText("Reading mode", { exact: true }).click();
+          await page.locator(".app.is-reading").waitFor();
+          assert.equal(await page.locator(".app-header").isVisible(), false);
+          assert.equal(await page.locator(".tab-strip").first().isVisible(), false);
+          assert.equal(await page.locator(".prompt-dock").isVisible(), false);
+          assert.equal(await page.locator(".composer").isVisible(), false);
+          assert.equal(await page.getByRole("button", { name: "Question waiting", exact: true }).isVisible(), true);
+          const exit = await page.getByRole("button", { name: "Leave reading mode", exact: true }).boundingBox();
+          assert.ok(exit && exit.width >= 44 && exit.height >= 44 && exit.y + exit.height <= 844, "exit is a reachable phone touch target");
+          assert.ok(((await page.locator(".terminal-surface").boundingBox())?.height ?? 0) > (transcriptHeight ?? 0), "reading mode expands the transcript");
+          await page.locator(".row-sheet").waitFor({ state: "detached" });
+          assert.equal((await hitOf(page, ".reading-mode-exit", "bottom")).hit, "self", "exit is not covered by the closing menu");
+          await page.locator('body > div[inert][aria-hidden="true"]').waitFor({ state: "detached" });
+          await shot("reading-mode-question");
+          for (const [width, height] of [[444, 475], [844, 390], [1440, 900]] as const) {
+            await page.setViewportSize({ width, height });
+            const box = await page.locator(".reading-mode-exit").boundingBox();
+            assert.ok(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= width && box.y + box.height <= height, `reading exit fits ${width}x${height}`);
+            assert.equal(await page.locator(".app-header").isVisible(), false);
+            assert.equal(await page.locator(".sidebar").isVisible(), false);
+            assert.equal(await page.locator(".tab-strip").first().isVisible(), false);
+          }
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.getByRole("button", { name: "Question waiting", exact: true }).click();
+          assert.ok((await field.inputValue()).startsWith("Joint account\nUse this screenshot"), "reading mode preserves the answer draft");
+          assert.equal(await page.locator(".prompt-card-attachment img").count(), 1, "reading mode preserves the image draft");
+          assert.equal((await answersOf(page)).length, 0, "reading mode never answers the question");
+          await page.locator(".header-more-button").click();
+          await page.getByText("Reading mode", { exact: true }).click();
+          await page.keyboard.press("Escape");
+          assert.equal(await page.locator(".app.is-reading").count(), 0, "Escape exits instead of dismissing the question");
+          assert.equal(await field.isVisible(), true);
           await page.getByRole("button", { name: "Collapse question", exact: true }).click();
           assert.equal(await field.isVisible(), false);
           assert.equal(await page.locator(".composer").isVisible(), true, "folding restores the regular composer");

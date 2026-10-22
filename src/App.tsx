@@ -1,5 +1,5 @@
 import { type CSSProperties, type DragEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Bell, Ellipsis, FolderOpen, Link, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, X } from "lucide-react";
+import { Bell, BookOpen, Ellipsis, FolderOpen, Link, Menu, MessageSquare, Minimize2, PanelLeft, Search, SquareTerminal, X } from "lucide-react";
 
 import type { AgentStatus, ServerMessage, AccessRefusal, HealthAuth, HerdrPane, SessionHistoryAgent } from "../shared/protocol.ts";
 import { ApiError, authenticate, createTab, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, routeMissing, sendTestPush, shareSeen, signOut, splitPane, zoomPane, type HealthInfo } from "./lib/api.ts";
@@ -431,6 +431,26 @@ export function App() {
   // the header's More menu: its button
   const [more, setMore] = useState<{ anchor: HTMLElement } | null>(null);
   const closeMore = useCallback(() => setMore(null), []);
+  // Device-local and deliberately not persisted or synchronized with preferences.
+  const [readingMode, setReadingMode] = useState(false);
+  const leaveReadingMode = useCallback(() => {
+    setReadingMode(false);
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".header-more-button")?.focus({ preventScroll: true }));
+  }, []);
+  useEffect(() => {
+    if (!readingMode) return;
+    const onEscape = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229 || document.querySelector('[role="dialog"]')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      leaveReadingMode();
+    };
+    window.addEventListener("keydown", onEscape, true);
+    return () => window.removeEventListener("keydown", onEscape, true);
+  }, [readingMode, leaveReadingMode]);
+  useLayoutEffect(() => {
+    if (readingMode) document.querySelector<HTMLButtonElement>(".reading-mode-exit")?.focus({ preventScroll: true });
+  }, [readingMode]);
   // the pane canvas's actions, for the phone's tab menu (TabStrip)
   const paneActionsRef = useRef<((target: HerdrPane) => RowMenuItem[]) | null>(null);
   // the Files dialog, and the file open in the viewer (a path as the chat or the dialog gave it)
@@ -1541,13 +1561,19 @@ export function App() {
   const keyboardLikely = useMediaQuery("(hover: hover) and (pointer: fine)");
   const paletteKeys = keyboardLikely ? formatKeys(shortcutDisplayKeys("palette", settings.shortcutOverrides)).join("+") : "";
   const moreItems: RowMenuItem[] = [
-    // first at every width: a phone's header has no palette button, and a touch screen no shortcut
+    // a phone's header has no palette button, and a touch screen no shortcut
     { id: "palette", label: t("Search panes and actions"), icon: Search, ...(paletteKeys ? { hint: paletteKeys } : {}), run: () => openPalette() },
     ...(selectedPane && !selectedPane.restore_error ? [{ id: "find", label: t("Find in terminal"), icon: Search, run: actions.openFind }] : []),
     // from 769px Files has its own button beside the lens switch; a phone keeps it here
     ...(selectedPane && !wideScreen ? [{ id: "files", label: t("Browse files"), icon: FolderOpen, run: () => setFilesOpen(true) }] : []),
     // the address says where the app is (lib/deepLink.ts); a phone has no address bar to copy it from
     { id: "copy-link", label: t("Copy link"), icon: Link, run: () => void copyText(window.location.href).then((ok) => { if (ok) setHeaderNote("copied"); }) },
+    ...(selectedPane ? [{ id: "reading-mode", label: t("Reading mode"), icon: BookOpen, run: () => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      setMore(null);
+      setDrawerOpen(false);
+      setReadingMode(true);
+    } }] : []),
     ...(bellVisible ? [{ id: "alerts", label: t("Alerts"), hint: bell.state, checked: bell.on, title: bell.title, icon: Bell, run: () => void bell.run() }] : []),
   ];
 
@@ -1582,10 +1608,11 @@ export function App() {
   if (locked) return <AccessGate reason={lockReason} initialCode={pairCode} onUnlocked={unlock} />;
 
   return (
-    <MachineSessionsProvider machineIds={machines.map((machine) => machine.id)}><MachineContext.Provider value={selectedMachineId}><div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`} style={sidebarWidth === null && filePanelWidth === null ? undefined : {
+    <MachineSessionsProvider machineIds={machines.map((machine) => machine.id)}><MachineContext.Provider value={selectedMachineId}><div className={`app${readingMode ? " is-reading" : ""}${sidebarCollapsed ? " sidebar-collapsed" : ""}`} style={sidebarWidth === null && filePanelWidth === null ? undefined : {
       ...(sidebarWidth === null ? {} : { "--sidebar-user-w": `${sidebarWidth}px` }),
       ...(filePanelWidth === null ? {} : { "--file-panel-user-w": `${filePanelWidth}px` }),
     } as CSSProperties}>
+      {readingMode && <button type="button" className="icon-button reading-mode-exit" aria-label={t("Leave reading mode")} title={t("Leave reading mode")} onClick={leaveReadingMode}><Minimize2 aria-hidden="true" /></button>}
       <header className={`app-header is-zoned${chatShown ? " is-chat" : ""}`}>
         {/* is-zoned tells this header from the connecting shell's, which has no zones to draw.
             .header-side is the sidebar's own top row from 769px (styles.css); below that its
@@ -1810,6 +1837,8 @@ export function App() {
                     onOpenInHalf={wideScreen ? (id, side) => dockSide({ machineId, paneId: id }, side) : undefined}
                     renderPane={(item, itemActive, herdrSplit) => <OpenFileContext.Provider value={item ? (path) => openFile({ path, paneId: item.pane_id, machineId }) : null}>
                       <PaneTerminal
+                        readingMode={readingMode}
+                        onLeaveReadingMode={leaveReadingMode}
                         presentationKey={paneContentKey(machine, item, item ? lensOf(item) : slotView)}
                         finishEpoch={machine?.snapshot?.finish_epoch}
                         finishId={item?.finish_id}
