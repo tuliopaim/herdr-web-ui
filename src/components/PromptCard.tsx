@@ -178,7 +178,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
         )}
         {/* read, not drawn: the title is the card's one red */}
         <span className="visually-hidden">{t("input needed")}</span>
-        <h2>{folded ? t("Agent is asking") : prompt.title}</h2>
+        <h2 className={prompt.agent === "pi" && !folded ? "prompt-card-question" : undefined}>{folded ? t("Agent is asking") : prompt.agent === "pi" ? prompt.question : prompt.title}</h2>
         {/* the card shows a plan in its short box; the file viewer draws the whole of it as Markdown */}
         {planFile && openFile && (
           <button type="button" className="btn btn-ghost prompt-card-plan-file" onClick={() => openFile(planFile)}>
@@ -227,7 +227,7 @@ export function PromptCard({ paneId, prompt, onPromptChanged, onAnswered, typedA
         </ol>
       )}
       {/* a Claude approval's heading is its question too: said once */}
-      {prompt.question !== prompt.title && <p className="prompt-card-question">{prompt.question}</p>}
+      {prompt.agent !== "pi" && prompt.question !== prompt.title && <p className="prompt-card-question">{prompt.question}</p>}
       {prompt.queued && (
         <p className="prompt-card-hint">
           {prompt.queued === "open"

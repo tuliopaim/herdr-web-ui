@@ -2626,3 +2626,7 @@ The values are the ones in `src/styles.css`.
 | Terminal content accessibility relies on xterm defaults | `PaneTerminal.tsx` | Screen-reader mode changes terminal DOM and input behavior | Decide with herdr TUI owners |
 | Drawer has no focus trap | `.sidebar.is-open` | Closed state leaves the tab order, but open-state trapping is not implemented | Add a shared focus utility |
 | Modal focus is initialized, not fully trapped | Dialog components | Escape/scrim/close work; tab containment is not shared | Add the same focus utility |
+
+Pi questions put the question text beside the collapse control, following Claude Code's compact
+inline-question layout rather than reserving a blank title row. The custom editor keeps Back
+in that same row; the collapse control retains its full touch target.
