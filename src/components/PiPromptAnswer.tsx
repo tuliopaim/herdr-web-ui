@@ -78,9 +78,9 @@ export function PiPromptAnswer({ paneId, defaultText, label, labelledBy, placeho
     void upload(Array.from(event.dataTransfer.files));
   }}>
     {attachments.length > 0 && <div className="prompt-card-attachments" aria-label={t("Attached files")}>
-      {attachments.map((item) => <div className="prompt-card-attachment" key={item.id}>
+      {attachments.map((item) => <div className="prompt-card-attachment" data-uploaded={item.path !== null} key={item.id}>
         <img src={item.preview} alt={item.name} />
-        <span>{t(item.path === null ? "Uploading" : "Attached")}</span>
+        <span className="visually-hidden" role="status">{t(item.path === null ? "Uploading" : "Attached")}</span>
         <button type="button" className="btn btn-ghost" disabled={disabled || uploading} aria-label={t("Remove {file}", { file: item.name })} onClick={() => {
           setAttachments((current) => current.filter((entry) => entry.id !== item.id));
           URL.revokeObjectURL(item.preview);
@@ -95,7 +95,7 @@ export function PiPromptAnswer({ paneId, defaultText, label, labelledBy, placeho
       }} onKeyDown={(event) => {
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); send(); }
       }} />
-    <div className="prompt-card-custom-row">
+    <div className="prompt-card-custom-row prompt-card-answer-actions">
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void upload(files); }} />
       <button type="button" className="btn" disabled={disabled || uploading} aria-label={t("Attach files")} title={t("Attach files")} onClick={() => input.current?.click()}><ImagePlus aria-hidden="true" /></button>
       <button type="button" className="btn btn-primary" disabled={disabled || uploading || !value || value.length > 12_000} onClick={send}><Send aria-hidden="true" />{t("Send")}</button>

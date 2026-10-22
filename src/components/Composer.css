@@ -1516,3 +1516,13 @@
     backdrop-filter: var(--glass-blur);
   }
 }
+
+/* Keep the message draft mounted, but show only one editor while Pi takes an answer.
+   Folding the question restores the regular composer without losing either draft. */
+.prompt-dock:has(> .prompt-card.is-pi-editor:not(.is-folded)) ~ .composer {
+  display: none;
+}
+
+.prompt-dock:has(> .prompt-card.is-pi-editor:not(.is-folded)) {
+  margin-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+}

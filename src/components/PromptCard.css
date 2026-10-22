@@ -571,21 +571,55 @@
 .prompt-card-attachments {
   display: flex;
   gap: var(--space-2);
-  overflow-x: auto;
+  flex-wrap: wrap;
 }
 
 .prompt-card-attachment {
   flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
+  position: relative;
+  padding: var(--space-1);
+}
+
+.prompt-card-attachment .btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-pill);
 }
 
 .prompt-card-attachment img {
-  width: var(--touch-target);
-  height: var(--touch-target);
+  width: calc(var(--touch-target) * 2);
+  height: calc(var(--touch-target) * 2);
   object-fit: cover;
   border-radius: var(--radius-sm);
+}
+
+.prompt-card.is-folded {
+  padding-block: var(--space-1);
+  gap: 0;
+}
+
+.prompt-card.is-folded::after {
+  display: none;
+}
+
+.prompt-card.is-pi-editor {
+  max-height: calc(var(--app-height, 100dvh) - var(--control-h) - var(--space-6));
+}
+
+.prompt-card-answer-actions {
+  position: sticky;
+  bottom: 0;
+  padding-block: var(--space-2);
+  background: var(--bg-elevated);
+  z-index: 1;
+}
+
+.prompt-card-answer-actions > .btn:last-child {
+  margin-inline-start: auto;
 }
