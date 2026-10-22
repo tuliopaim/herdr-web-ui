@@ -1,0 +1,13 @@
+─────────────────────────────────────────────────────────────────────────────────────────────────
+ Which account should I use?
+
+ ❯ 1. Personal
+      My own account
+   2. Company
+      Business account
+   ✎ Write my own answer…
+
+ ↑↓ or 1-3 select • Enter confirm • Esc dismiss
+─────────────────────────────────────────────────────────────────────────────────────────────────
+/tmp/project
+0.0%/0 (auto)                                                                             unknown

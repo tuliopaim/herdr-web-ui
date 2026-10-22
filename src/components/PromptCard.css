@@ -554,3 +554,38 @@
     padding-block: var(--space-1);
   }
 }
+
+/* Pi answers use its multiline editor. Image previews stay with the unsent answer when folded. */
+.prompt-card-image-answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.prompt-card-image-answer textarea {
+  resize: vertical;
+  min-height: calc(3lh + var(--space-3));
+  max-height: 8lh;
+}
+
+.prompt-card-attachments {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.prompt-card-attachment {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.prompt-card-attachment img {
+  width: var(--touch-target);
+  height: var(--touch-target);
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}

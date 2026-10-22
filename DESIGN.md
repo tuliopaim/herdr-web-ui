@@ -1678,6 +1678,18 @@ Alert rows of the table above from the `--droplet-*` roles in `src/styles.css`.
 ### Prompt card (`.prompt-card`)
 - Appears in chat while the agent is blocked and the visible pane contains a supported Claude, omp,
   omo or codex question, approval or plan menu.
+- Pi's custom `ask_user` uses this same card: question, option labels and descriptions,
+  then its own-answer choice. Like [Claude Code's clarifying-question flow](https://code.claude.com/docs/en/agent-sdk/user-input#handle-clarifying-questions),
+  choices and a typed answer share one question UI, rather than appearing as raw tool JSON.
+  Pi opens its editor only after choosing “Write my own answer”; the card then offers the
+  multiline text field and Back. Enter adds a line; Send or Ctrl/Cmd+Enter submits. Image
+  picker, paste and drop follow [Claude Code's image-input workflows](https://code.claude.com/docs/en/common-workflows#work-with-images),
+  using the composer's existing upload route. Previews can be removed before sending; the
+  answer contains uploaded file-path mentions, not an inline multimodal tool payload. Pi's
+  agent must read those paths to view the images. Uploads disable answer actions until done.
+  Collapse/Expand keeps the text and attachments while the transcript is read; a new question
+  discards them. Dismiss closes the choice menu; Back returns from the editor without answering.
+  Past `ask_user` calls use the transcript's existing question list.
 - Placement: docked on the composer's column, directly above the input card, on the card's width
   and gutter (`--chat-w`). It is not part of the transcript and does not scroll with it. The
   stack from the top is transcript, held messages (folded to their caption while a card is

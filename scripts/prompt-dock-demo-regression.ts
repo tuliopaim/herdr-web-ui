@@ -204,6 +204,9 @@ try {
         const prompt = promptOf(url.searchParams.get("pane_id"));
         if (prompt !== null) return json({ prompt, suggestion: null });
       }
+      if (url.pathname === "/api/pane/image") {
+        return json({ path: "/tmp/demo/.herdr-web-ui/answer.png" });
+      }
       if (url.pathname === "/api/pane/prompt/answer") {
         const answer = JSON.parse(init.body);
         const prompt = promptOf(answer.pane_id);
@@ -314,6 +317,46 @@ try {
         assert.deepEqual(layout.badge?.text, "input needed", `${label}: the badge is still read`);
         assert.ok(layout.badge!.width <= 1, `${label}: the badge is not drawn`);
       };
+
+      {
+        const pi = { id: "pi-custom", agent: "pi", kind: "question", title: "Question", question: "Which account?", body: null,
+          options: [{ label: "Type your answer", description: null }, { label: "Back", description: null }], multi_select: false, custom_option_index: 0 };
+        const { page, errors, close } = await open({ width: 390, height: 844, touch: true, prompt: pi });
+        try {
+          const field = page.locator(".prompt-card textarea");
+          await field.fill("Joint account\nUse this screenshot");
+          await field.press("Enter");
+          assert.equal((await answersOf(page)).length, 0, "Enter adds a line rather than sending a Pi answer");
+          await page.locator('.prompt-card input[type="file"]').setInputFiles({ name: "answer.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII=", "base64") });
+          await page.locator(".prompt-card-attachment").getByText("Attached", { exact: true }).waitFor();
+          await page.getByRole("button", { name: "Collapse question", exact: true }).click();
+          assert.equal(await field.isVisible(), false);
+          assert.equal((await answersOf(page)).length, 0, "collapsing neither dismisses nor answers");
+          await page.getByRole("button", { name: "Expand question", exact: true }).click();
+          assert.ok((await field.inputValue()).startsWith("Joint account\nUse this screenshot"));
+          assert.equal(await page.locator(".prompt-card-attachment img").count(), 1, "the image survives folding");
+          await page.locator(".prompt-card").getByRole("button", { name: "Send", exact: true }).click();
+          await page.locator(".prompt-card textarea").waitFor({ state: "detached" });
+          assert.deepEqual(await answersOf(page), [{ pane_id: panes.web, prompt_id: "pi-custom", custom_text: "@/tmp/demo/.herdr-web-ui/answer.png Joint account\nUse this screenshot" }]);
+          await setPrompt(page, { ...pi, id: "pi-next" });
+          await page.locator(".prompt-card textarea").waitFor();
+          assert.equal(await page.locator(".prompt-card textarea").inputValue(), "");
+          assert.equal(await page.locator(".prompt-card-attachment").count(), 0, "attachments do not leak to another question");
+          await page.locator(".prompt-card textarea").evaluate((node) => {
+            const data = new DataTransfer();
+            data.items.add(new File([new Uint8Array([1, 2, 3])], "pasted.png", { type: "image/png" }));
+            node.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+          });
+          await page.locator(".prompt-card-attachment").getByText("Attached", { exact: true }).waitFor();
+          await page.getByRole("button", { name: "Remove pasted.png", exact: true }).click();
+          await page.locator(".prompt-card textarea").fill("No image needed");
+          await page.locator(".prompt-card textarea").press("Control+Enter");
+          await page.locator(".prompt-card textarea").waitFor({ state: "detached" });
+          assert.equal((await answersOf(page))[1]!.custom_text, "No image needed", "a removed image is not included in the answer");
+          assert.deepEqual(errors, []);
+        } catch (error) { await preserveFailure(page, error); } finally { await close(); }
+        console.log("PASS Pi multiline image answer, collapse/reopen, explicit send, and next-question reset");
+      }
 
       for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844, touch: true }]) {
         for (const theme of ["dark", "light"]) {

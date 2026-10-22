@@ -3865,6 +3865,57 @@ describe("an answer and the menu it was made for", () => {
     return { status: response.status, code: body.error?.code };
   }
 
+  const piAsk = (cursor = 0, editing = false, draft = "") => [
+    "─".repeat(60), " Which account?", "",
+    `${cursor === 0 ? " ❯ " : "   "}1. Personal`, "      My own account",
+    `${cursor === 1 ? " ❯ " : "   "}2. Company`,
+    `${cursor === 2 ? " ❯ " : "   "}✎ Write my own answer…`,
+    ...(editing ? ["", " Your answer:", " ──────────────────", ` ${draft}`, " ──────────────────"] : []),
+    "", editing ? " Enter submit • Esc back" : " ↑↓ or 1-3 select • Enter confirm • Esc dismiss",
+    "─".repeat(60), "/tmp/project", "10% context",
+  ].join("\n");
+
+  test("answers Pi ask_user via the prompt route, then separately answers its custom editor", async () => {
+    await withPane("pi", "blocked", piAsk(), async (pane) => {
+      const menu = (await card())!;
+      expect(menu.question).toBe("Which account?");
+      let cursor = 0;
+      pane.onSent = (key) => {
+        if (key === "down") pane.screen = piAsk(++cursor);
+        if (key === "enter") pane.screen = piAsk(2, true);
+      };
+      expect(await answer(menu.id, { option_index: 2 })).toEqual({ status: 200 });
+      expect(pane.sent).toEqual(["down", "down", "enter"]);
+      const editor = (await card())!;
+      expect(editor.custom_option_index).toBe(0);
+      pane.sent = [];
+      pane.onSent = undefined;
+      expect(await answer(editor.id, { custom_text: "Joint account" })).toEqual({ status: 200 });
+      expect(pane.sent).toEqual(["text:Joint account", "enter"]);
+    });
+  });
+
+  test("dismisses Pi ask_user and refuses stale answers without sending keys", async () => {
+    await withPane("pi", "blocked", piAsk(), async (pane) => {
+      const menu = (await card())!;
+      pane.screen = piAsk().replace("Which account?", "Which project?");
+      expect(await answer(menu.id, { option_index: 1 })).toEqual({ status: 409, code: "prompt_changed" });
+      expect(pane.sent).toEqual([]);
+      const current = (await card())!;
+      expect(await answer(current.id, { option_index: 3 })).toEqual({ status: 200 });
+      expect(pane.sent).toEqual(["esc"]);
+    });
+  });
+
+  test("refuses a Pi custom answer after someone starts typing in its terminal editor", async () => {
+    await withPane("pi", "blocked", piAsk(2, true), async (pane) => {
+      const editor = (await card())!;
+      pane.screen = piAsk(2, true, "terminal draft");
+      expect(await answer(editor.id, { custom_text: "Browser answer" })).toEqual({ status: 409, code: "prompt_changed" });
+      expect(pane.sent).toEqual([]);
+    });
+  });
+
   const omoRule = "─".repeat(100);
   const omoWidget = (box = "❯") => `? Question pending (1 unanswered) · 30m
  QA — Which one?
