@@ -38,6 +38,9 @@ import { lastViewedPane, rememberViewedPane } from "../lib/lastViewedPane.ts";
 
 const said = (reason: unknown): string => reason instanceof ApiError ? reason.detail : reason instanceof Error ? reason.message : String(reason);
 
+/** A short phone screen (landscape, a small phone): a lone tab is not drawn (below), and App's merged header keeps the title there. */
+export const CRAMPED_STRIP = "(max-width: 768px) and (max-height: 600px)";
+
 export interface TabStripProps {
   snapshot: SessionSnapshot;
   workspace: WorkspaceInfo;
@@ -70,7 +73,8 @@ export function TabStrip({ snapshot, workspace, selectedPane, onSelectPane, onNe
   const soloPanes = useMediaQuery(SOLO_PANE_QUERY);
   // a short phone screen (landscape, a small phone) has no height to spare: a lone tab is not
   // drawn there, so an approval card keeps its options in reach; its actions stay in the header
-  const cramped = useMediaQuery("(max-width: 768px) and (max-height: 600px)");
+  // App answers the same query, to keep the title there when the merged header strip draws nothing
+  const cramped = useMediaQuery(CRAMPED_STRIP);
   const strip = useRef<HTMLDivElement>(null);
   const [picker, setPicker] = useState<{ anchor: HTMLElement; tab: HerdrTab; point?: { x: number; y: number }; previousFocus: HTMLElement | null; touch: boolean } | null>(null);
   const [editing, setEditing] = useState<{ tabId: string; value: string } | null>(null);

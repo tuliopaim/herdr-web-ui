@@ -22,7 +22,7 @@ import { forgetSessionHistoryProbesOfPcsAway } from "./lib/useSessionHistoryOffe
 import { passingFolder, recentDirectories } from "./lib/recent-directories.ts";
 import { usePreferencesSync } from "./lib/preferencesSync.ts";
 import { keepEventStream } from "./lib/eventStream.ts";
-import { TabStrip } from "./components/TabStrip.tsx";
+import { TabStrip, CRAMPED_STRIP } from "./components/TabStrip.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { loadedOnSettingsEntry, onSettingsHistory, recordSettings, settingsEntry } from "./lib/settingsHistory.ts";
 import { sheetSteppedOff, usePhoneSheetBack } from "./lib/sheetHistory.ts";
@@ -372,6 +372,9 @@ export function App() {
   // narrow window opened must not come back (with its scrim) the next time the window narrows
   const wideScreen = useMediaQuery("(min-width: 769px)");
   useEffect(() => { if (wideScreen) setDrawerOpen(false); }, [wideScreen]);
+  // a phone shares the header's row with the tabs (App's phoneStrip); App answers the same query
+  // TabStrip does, so the title stands in again where the strip would draw nothing
+  const crampedStrip = useMediaQuery(CRAMPED_STRIP);
   // with a generation (lib/selectionMark.ts): a call that answers after the user opened another pane or PC leaves
   // the selection alone. Marked at commit, not in render: a render React throws away (Strict Mode, a replay)
   // must not move the generation on, and every reader runs from an event or a reply, after the commit
@@ -1433,6 +1436,14 @@ export function App() {
   const crumb = selectedPane && selectedTitle !== null
     ? headerCrumb({ machine: selectedMachine?.name ?? selectedMachineId, machineCount: machines.length, workspace: selectedWorkspace?.label ?? selectedPane.workspace_id, title: selectedTitle, cwd: selectedPane.cwd })
     : null;
+  // A phone merges the two bars into one: the workspace's tabs stand in the header where the
+  // title and crumb sit (styles.css), since a portrait screen has no height for a second bar.
+  // The crumb keeps its place in the More menu's header and the tab's tooltip; a cramped screen,
+  // where TabStrip draws no lone tab, keeps the title instead.
+  const phoneTabs = !wideScreen && snapshot && selectedPane && selectedWorkspace
+    ? snapshot.tabs.filter((tab) => tab.workspace_id === selectedWorkspace.workspace_id)
+    : null;
+  const phoneStrip = phoneTabs !== null && phoneTabs.length > 0 && !(crampedStrip && phoneTabs.length === 1);
 
   useEffect(() => {
     document.title = selectedTitle ? `${selectedTitle} · Ovis` : APP_TITLE;
@@ -1619,6 +1630,14 @@ export function App() {
 
   // the palette's shortcut, said beside its item where a hardware keyboard is likely (a fine pointer)
   const keyboardLikely = useMediaQuery("(hover: hover) and (pointer: fine)");
+  // the open pane's actions, offered in the touch tab menu (the strip in the header on a phone,
+  // the pane column's strip in a split): the canvas renders after the strip, so the menu's items
+  // resolve through the ref at run time (PaneCanvas)
+  const paneActionsOf = (paneId: string): RowMenuItem[] => {
+    const target = snapshot?.panes.find((item) => item.pane_id === paneId);
+    if (!target || !paneActionsRef.current) return [];
+    return paneActionsRef.current(target).map((item) => ({ ...item, run: () => (paneActionsRef.current?.(target).find((fresh) => fresh.id === item.id) ?? item).run() }));
+  };
   const paletteKeys = keyboardLikely ? formatKeys(shortcutDisplayKeys("palette", settings.shortcutOverrides)).join("+") : "";
   const moreItems: RowMenuItem[] = [
     // a phone's header has no palette button, and a touch screen no shortcut
@@ -1703,7 +1722,11 @@ export function App() {
           </button>
         </div>
         <HeaderNote note={note} />
-        {note !== null ? null : selectedPane && crumb ? (
+        {note !== null ? null : selectedPane && crumb && phoneStrip && snapshot && selectedWorkspace ? (
+          <TabStrip snapshot={snapshot} workspace={selectedWorkspace} selectedPane={selectedPane}
+            onSelectPane={selectPane} onNewTab={() => actions.openNewTab()} onNewTerminal={() => actions.openTerminalTab()}
+            paneActions={paneActionsOf} />
+        ) : selectedPane && crumb ? (
           <div className="context" title={crumb.tooltip}>
             <div className="context-title">
               {selectedAgent && <AgentMark agent={selectedAgent} size={18} />}
@@ -1888,17 +1911,11 @@ export function App() {
                 <RenderBoundary resetKey={`${machineId}:${paneId ?? ""}`} fallback={(retry) => <>{slotBar}<RegionCrash message={t("This pane can't be shown.")} retry={retry} onShown={active ? paneLost : undefined} /></>}>
                 <CrashProbe region="pane" />
                 {!(slotSnapshot && pane && workspace) && slotBar}
-                {slotSnapshot && pane && workspace && (
+                {slotSnapshot && pane && workspace && (wideScreen || !phoneStrip) && (
                   <TabStrip snapshot={slotSnapshot} workspace={workspace} selectedPane={pane} panelId={slotPanelId} splitDrag={wideScreen} onSelectPane={onSelect} end={slotEnd}
                     onNewTab={() => actions.openNewTab(active ? undefined : { machineId, workspaceId: workspace.workspace_id })}
                     onNewTerminal={() => actions.openTerminalTab(active ? undefined : { machineId, workspaceId: workspace.workspace_id })}
-                    paneActions={active ? (paneId) => {
-                      const target = snapshot?.panes.find((item) => item.pane_id === paneId);
-                      if (!target || !paneActionsRef.current) return [];
-                      // the strip renders before the canvas, so its items come from the canvas's previous render:
-                      // an action runs against the canvas's latest one, where a snapshot change has landed
-                      return paneActionsRef.current(target).map((item) => ({ ...item, run: () => (paneActionsRef.current?.(target).find((fresh) => fresh.id === item.id) ?? item).run() }));
-                    } : undefined} />
+                    paneActions={active ? paneActionsOf : undefined} />
                 )}
                 {/* the tab strip's panel: its id is what each tab's aria-controls points at, one per half.
                     No tabIndex - the terminal (PaneTerminal) and the composer are the focusable things inside it. */}

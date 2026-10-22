@@ -2827,6 +2827,33 @@ button {
   }
 }
 
+/* One bar on a phone: the workspace's tabs (the + and the selected tab's ⋯ included) stand in
+   the header where the title and crumb sit (App), so a portrait screen does not spend a second
+   bar before its content. The strip keeps every behaviour from Tab strip; only its surface is
+   the header's, which the glass header matches with its own colour. The palette's room goes to
+   the tabs: its item is the More menu's first one. A cramped screen keeps the title and crumb,
+   since TabStrip draws no lone tab there. */
+@media (max-width: 768px) {
+  .app-header .tab-strip {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    align-self: stretch;
+    padding: 0;
+    background: transparent;
+    border-bottom: 0;
+    --strip-bg: var(--bg-panel);
+  }
+
+  .app:has(> .app-body > .pane-column.is-chat > .pane-split:first-child > .pane-slot > .terminal-host:first-child) .app-header .tab-strip {
+    --strip-bg: var(--bar-bg);
+  }
+
+  .app-header .palette-button {
+    display: none;
+  }
+}
+
 /* A finger, not a mouse. The app's own controls are not text: a long press on a row, a tab or a
    button opens no loupe, selection or link callout, while what is read (the transcript, code,
    a file, a field) keeps them. Page pinch zoom stays available on ordinary content; the terminal's

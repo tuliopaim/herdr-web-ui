@@ -1302,6 +1302,9 @@ Alert rows of the table above from the `--droplet-*` roles in `src/styles.css`.
   Pane actions are not tab actions. Up to 768px, where a split tab shows one pane at a time, the
   tab's menu lists the tab's panes first, the open one marked current, over a hairline.
   Only at these narrow widths does it omit Split and Zoom pane; Unzoom pane stays available whenever the tab is zoomed.
+- Up to `768px` the strip stands in the header itself (Header context and connection): the
+  header and the strip are one bar over the pane, and the pane column draws a strip only where
+  the header does not take it (a cramped screen). Reading mode hides it with the header.
 - Mouse dragging previews an accent insertion line, with edge scrolling for an overflowing strip.
   The snapshot's tab order is authoritative: a tab's stable `number` is not its place. A drop calls
   `tab.move` with an insertion boundary before removal, within that workspace and PC. The visible
@@ -1504,6 +1507,14 @@ Alert rows of the table above from the `--droplet-*` roles in `src/styles.css`.
   after a drop, disconnected once output stopped. Below `900px` it keeps only its dot; the word stays as
   its accessible text and in its tooltip. While live the chip takes no room and stays in the
   document as a `role="status"` a screen reader can read (`.conn-live`; never `display: none`).
+- Up to `768px` the header and the tab strip are one bar: the workspace's tabs (the `+` and the
+  selected tab's `⋯` included) stand where the context sits, and the palette button's room goes
+  to them (its item is the More menu's first one). This differs from the desktop's two-zone
+  header because a portrait phone spends its height on content, not on a second bar; the strip
+  keeps every behaviour of the Tab strip entry, and the full path stays in the More menu's
+  header and the tab's tooltip. A cramped screen (`max-width: 768px` and `max-height: 600px`,
+  where TabStrip draws no lone tab) keeps the title and crumb as before.
+
 
 ### Chat turn (`.chat-turn`)
 - Native conversation rows use LegendList 3.3.5, with the chat view as the single
