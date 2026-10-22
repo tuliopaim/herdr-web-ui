@@ -1,7 +1,17 @@
+import { imageMention } from "./compose.ts";
+
+export interface CommentImage {
+  readonly id: string;
+  readonly name: string;
+  readonly preview: string;
+  readonly path: string;
+}
+
 export interface ResponseComment {
   readonly id: string;
   readonly quote: string;
   readonly comment: string;
+  readonly images?: readonly CommentImage[];
 }
 
 /** Keep quotes inert in the follow-up, including multiline code and Markdown. */
@@ -14,7 +24,9 @@ export function commentsMessage(message: string, comments: readonly ResponseComm
     ...comments.flatMap((note, index) => [
       "", `## Comment ${index + 1}`, "", "Quoted passage:",
       ...note.quote.split("\n").map((line) => `> ${line}`),
-      "", "My comment:", note.comment,
+      "", "My comment:",
+      ...(note.images ?? []).map((image) => imageMention(image.path).trim()),
+      note.comment,
     ]),
   ].join("\n");
 }

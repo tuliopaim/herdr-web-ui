@@ -10,7 +10,7 @@ import panes from "../site/demo/fixtures/panes.json";
 // The real app and demo transport only. No live sessions, RPCs or user state.
 const app = mkdtempSync(join(tmpdir(), "herdr-response-comments-"));
 const shots = process.env.COMMENT_SHOTS;
-interface CommentWindow extends Window { commentSubmits: { text: string }[]; failCommentSend: boolean }
+interface CommentWindow extends Window { commentSubmits: { text: string }[]; failCommentSend: boolean; failCommentUpload: boolean }
 const selectQuote = async (page: Page, selector = "[data-response-comment-source]") => {
   await page.locator(selector).first().scrollIntoViewIfNeeded();
   return page.locator(selector).first().evaluate((node) => {
@@ -36,9 +36,12 @@ try {
   const injection = `<script src="./demo-transport.js"></script><script>
     window.commentSubmits = [];
     window.failCommentSend = false;
+    window.failCommentUpload = false;
+    let imageSequence = 0;
     const transportFetch = window.fetch;
     window.fetch = (input, init) => {
       const url = new URL(typeof input === 'string' ? input : input.url || input.href, location.href);
+      if (url.pathname === '/api/pane/image') return Promise.resolve(window.failCommentUpload ? new Response(JSON.stringify({error:'Simulated upload failure'}), {status:500,headers:{'content-type':'application/json'}}) : new Response(JSON.stringify({path:'/tmp/comment-image-' + (++imageSequence) + '.png'}), {headers:{'content-type':'application/json'}}));
       if (url.pathname === '/api/pane/prompt') return Promise.resolve(new Response(JSON.stringify({prompt:null,suggestion:null}), {headers:{'content-type':'application/json'}}));
       return transportFetch(input, init);
     };
@@ -64,6 +67,7 @@ try {
   writeFileSync(index, readFileSync(index, "utf8").replace(/<script type="module"/, `${injection}<script type="module"`));
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
     const path = decodeURIComponent(new URL(request.url).pathname);
+    if (path === "/api/fs/file") return new Response(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII=", "base64"), { headers: { "content-type": "image/png" } });
     if (path.includes("..")) return new Response("not found", { status: 404 });
     return new Response(Bun.file(join(app, path === "/" ? "index.html" : path)));
   } });
@@ -85,7 +89,45 @@ try {
         await page.getByRole("button", { name: "Comments · 2", exact: true }).click();
         await page.getByRole("button", { name: "Edit comment 1", exact: true }).click();
         await page.locator("dialog[open]").getByLabel("Your comment", { exact: true }).fill("Edited comment");
+        const image = { name: "comment.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII=", "base64") };
+        const dialog = page.locator("dialog[open]");
+        // Upload errors preserve text; successful retry supplies a removable thumbnail.
+        await page.evaluate(() => { (window as unknown as CommentWindow).failCommentUpload = true; });
+        await dialog.locator('input[type="file"]').setInputFiles(image);
+        await dialog.getByRole("alert").waitFor();
+        assert.equal(await dialog.getByLabel("Your comment", { exact: true }).inputValue(), "Edited comment");
+        await page.evaluate(() => { (window as unknown as CommentWindow).failCommentUpload = false; });
+        await dialog.locator('input[type="file"]').setInputFiles(image);
+        await dialog.getByRole("button", { name: "Remove comment.png", exact: true }).click();
+        assert.equal(await dialog.locator(".response-comment-images img").count(), 0);
+        // Clipboard images use the same path as the picker.
+        await dialog.locator("textarea").evaluate((node) => {
+          const data = new DataTransfer();
+          data.items.add(new File([Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII="), (char) => char.charCodeAt(0))], "pasted.png", { type: "image/png" }));
+          node.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }));
+        });
+        await dialog.getByRole("button", { name: "Remove pasted.png", exact: true }).waitFor();
+        if (size.width === 390) {
+          await page.setViewportSize({ width: 390, height: 480 });
+          const saveButton = dialog.getByRole("button", { name: "Save comment", exact: true });
+          await saveButton.scrollIntoViewIfNeeded();
+          const box = await saveButton.boundingBox();
+          assert.ok(box && box.y >= 0 && box.y + box.height <= 480, "Save stays reachable above a simulated keyboard");
+          if (shots) {
+            mkdirSync(shots, { recursive: true });
+            await page.screenshot({ path: join(shots, "comment-editor-keyboard.png") });
+          }
+          await page.setViewportSize(size);
+        }
+        if (shots) {
+          mkdirSync(shots, { recursive: true });
+          await page.screenshot({ path: join(shots, `comment-editor-${size.width}x${size.height}.png`) });
+        }
         await page.getByRole("button", { name: "Save comment", exact: true }).click();
+        // Saved images remain available when reopening the editor.
+        await page.getByRole("button", { name: "Edit comment 1", exact: true }).click();
+        await page.locator("dialog[open]").getByRole("img", { name: "pasted.png" }).waitFor();
+        await page.locator("dialog[open]").getByRole("button", { name: "Cancel", exact: true }).click();
         await page.getByRole("button", { name: "Remove comment 2", exact: true }).click();
         await page.getByRole("button", { name: "Comments · 1", exact: true }).waitFor();
         assert.equal(await page.locator(".composer-text").inputValue(), "My overall request");
@@ -96,6 +138,7 @@ try {
         await page.getByRole("button", { name: "Send message", exact: true }).waitFor();
         assert.equal(await page.locator(".composer-text").inputValue(), "My overall request");
         await page.getByRole("button", { name: "Comments · 1", exact: true }).waitFor();
+        assert.equal(await page.getByLabel("Saved comments").getByRole("img", { name: "pasted.png" }).count(), 1);
         await page.evaluate(() => { (window as unknown as CommentWindow).failCommentSend = false; });
         await page.getByRole("button", { name: "Send message", exact: true }).click();
         await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>(".composer-text")?.value === "");
@@ -103,6 +146,8 @@ try {
         const submitted = await page.evaluate(() => (window as unknown as CommentWindow).commentSubmits.at(-1)!.text);
         assert.ok(submitted.startsWith("My overall request\n\n"));
         assert.ok(submitted.includes("Edited comment"));
+        assert.ok(submitted.includes("@/tmp/comment-image-2.png"));
+        assert.ok(!submitted.includes("data:image"));
         assert.ok(submitted.includes(quote.split("\n").map((line) => `> ${line}`).join("\n")));
         assert.ok(!submitted.includes("Change the second passage"));
         // Reset the demo agent: its scripted reply opens an unrelated interactive question.
@@ -129,12 +174,24 @@ try {
         const commentsOnly = await page.evaluate(() => (window as unknown as CommentWindow).commentSubmits.at(-1)!.text);
         assert.ok(commentsOnly.startsWith("Address my comments"));
         assert.ok(commentsOnly.includes("Reading mode comment"));
+        // An image can be the entire comment; dropping it must not send anything yet.
+        await selectQuote(page);
+        await page.getByRole("button", { name: "Add comment", exact: true }).click();
+        await page.locator("dialog[open] .response-comment-editor").evaluate((node) => {
+          const data = new DataTransfer();
+          data.items.add(new File([Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aB1cAAAAASUVORK5CYII="), (char) => char.charCodeAt(0))], "dropped.png", { type: "image/png" }));
+          node.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: data }));
+        });
+        await page.locator("dialog[open]").getByRole("button", { name: "Remove dropped.png", exact: true }).waitFor();
+        assert.equal(await page.locator("dialog[open] textarea").inputValue(), "");
+        await page.getByRole("button", { name: "Save comment", exact: true }).click();
+        await page.getByRole("button", { name: "Comments · 1", exact: true }).waitFor();
         // Native selection in a user's message must not offer annotation.
         await selectQuote(page, ".chat-turn-user");
         await page.getByRole("button", { name: "Add comment", exact: true }).waitFor({ state: "detached" });
         assert.deepEqual(errors, []);
         await context.close();
-        console.log(`PASS ${size.width}x${size.height}: select, edit/remove, combined send, failed-send retention, Reading mode, comments-only and user-selection exclusion`);
+        console.log(`PASS ${size.width}x${size.height}: select, edit/remove, combined send, failed-send retention, Reading mode, image pick/paste/drop, image-only notes and user-selection exclusion`);
       }
     } finally { await browser.close(); }
   } finally { await server.stop(true); }
