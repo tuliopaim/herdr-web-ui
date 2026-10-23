@@ -76,6 +76,8 @@ run_script scripts/chat-history-browser-qa.ts
 run_script scripts/session-history-browser-qa.ts
 run_script scripts/new-session-skills-browser-qa.ts
 run_script scripts/chat-virtual-browser-qa.ts
+run_script scripts/chat-width-regression.ts
+run_script scripts/frontend-assets-regression.ts
 run_script scripts/chat-scroll-padding-regression.ts
 run_script scripts/chat-selection-copy-regression.ts
 run_script scripts/chat-fallback-browser-qa.ts

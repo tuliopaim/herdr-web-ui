@@ -5,7 +5,12 @@ import { installedUpdate, notesOffer, notesRetryDelay, notesUnboundDelay, offere
 import { usePageVisible } from "./visibility.ts";
 import { lazyChunkFailed, onLazyChunkFailure } from "./lazyChunk.ts";
 
+import { assetsChanged, shellAssets } from "./frontendAssets.ts";
+
 declare const __APP_REVISION__: string | null;
+
+// Capture the original shell before lazy views add stylesheets to the document.
+const loadedAssets = typeof document === "undefined" ? null : shellAssets(document, location.href);
 
 export function useUpdates(enabled: boolean) {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
@@ -40,6 +45,30 @@ export function useUpdates(enabled: boolean) {
   }, [enabled]);
   // a hidden page keeps the last status and polls again once it is back
   const visible = usePageVisible();
+  const [assetsUpdated, setAssetsUpdated] = useState(false);
+  useEffect(() => {
+    if (!enabled || !visible || !loadedAssets || assetsUpdated) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function check() {
+      try {
+        const response = await fetch(new URL("/", location.href), {
+          cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
+          headers: { Accept: "text/html" },
+        });
+        if (response.ok && !response.redirected && response.headers.get("content-type")?.includes("text/html")) {
+          const shell = new DOMParser().parseFromString(await response.text(), "text/html");
+          if (!controller.signal.aborted && assetsChanged(loadedAssets, shellAssets(shell, location.href))) {
+            setAssetsUpdated(true);
+            return;
+          }
+        }
+      } catch { /* offline or restarting: keep drafts and try again, never reload automatically */ }
+      if (!controller.signal.aborted) timer = setTimeout(() => void check(), 30_000);
+    }
+    void check();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [enabled, visible, assetsUpdated]);
   useEffect(() => {
     if (!enabled) { setStatus(null); setPending(false); setError(null); setErrorCode(null); return; }
     if (!visible) return;
@@ -145,7 +174,7 @@ export function useUpdates(enabled: boolean) {
   }, []);
   const failure = updateFailure(errorCode, status);
   const busy = pending || status?.phase === "checking" || status?.phase === "building" || status?.phase === "restarting";
-  const reload = reloadReason(typeof __APP_REVISION__ === "string" ? __APP_REVISION__ : null, status, busy, chunkFailed);
+  const reload = !busy && assetsUpdated ? "updated" : reloadReason(typeof __APP_REVISION__ === "string" ? __APP_REVISION__ : null, status, busy, chunkFailed);
   const needsReload = reload !== null;
   return { status, error, busy, needsReload, reload, notes, installed, request, failure, offered: offeredRevision(status) };
 }

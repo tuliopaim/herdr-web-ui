@@ -52,6 +52,12 @@ Messages say only what the person needs now, not everything the app knows:
   so its warning text and border stay readable in both light and dark themes; disabled because
   another action of the panel is running, Remove PC dims like its neighbours.
 
+Agent replies keep the Codex-style document lane described in ChatView.css. Like
+[T3 Code's Markdown renderer](https://github.com/pingdotgg/t3code/blob/main/apps/web/src/components/ChatMarkdown.tsx),
+the reply content has an explicit full width and can shrink inside its flex parent. Code and
+wide tables scroll inside that lane; they must not widen the paragraphs around them, including
+when a phone unfolds or uses a larger chat font. No reference code is copied.
+
 ## 2. Color
 
 ### Palette
@@ -2691,3 +2697,18 @@ are valid. Editing or cancelling an edit does not mutate the saved attachments. 
 leave text and earlier successful images intact; failed sends retain the saved comment and
 images. Paths are sent with their comment through the existing pane image upload route;
 thumbnail data is never sent as message text. These are page-lifetime drafts, not reload storage.
+
+### Frontend asset changes and connected OptChat transcripts
+
+The reload offer follows the app's existing explicit-reload flow, rather than silently
+reloading an installed phone app and losing a draft. Like the existing chunk-failure
+detection, shell asset comparison is independent of release revisions. It compares
+only same-origin fingerprinted entry scripts and stylesheets, checks on foreground and
+every 30 seconds while visible, and ignores offline/errors or non-app shells. A CSS
+hotfix therefore offers the same Reload app control even when its commit is unchanged.
+
+Connected OptChat windows follow the existing Pi/Herdr session lifecycle, not a new
+conversation discovery heuristic. The owner supplies the authoritative transcript;
+the receiving pane reports it through the managed extension's own sequence counter.
+The version-checked local overlay and adapter are documented in
+`docs/optchat-connected-windows.md`; npm caches and generated extensions stay untouched.

@@ -228,6 +228,13 @@
   color: var(--text);
 }
 
+/* The comment-selection wrapper is a flex item. Bound it to the reply lane so a
+   wide code block or table scrolls inside Markdown instead of widening all the prose. */
+.chat-turn-agent > [data-response-comment-source] {
+  width: 100%;
+  min-width: 0;
+}
+
 .chat-agent-meta {
   gap: var(--space-2);
 }
