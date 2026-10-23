@@ -123,7 +123,7 @@ function piSessionDirForProcess(
 /**
  * pi's transcript for a pane, or the session it has not written yet. The agent report names
  * the active session; Linux process metadata ties a custom store to the Pi process in this pane.
- * Where the OS cannot expose that process environment, only the bridge's default store is used.
+ * Without process metadata, the bridge default and fixed OptChat session/main-run stores are used.
  */
 export async function piTranscriptPath(
   paneId: string,
@@ -150,9 +150,11 @@ export async function piTranscriptPath(
   }
 
   const processStores = new Set<string>();
+  let hasProcessStore = false;
   for (const process of piProcesses) {
     const resolved = piSessionDirForProcess(process.argv ?? [], environOf(process.pid!), home, process.cwd ?? "");
     if (resolved.kind === "reject") return null;
+    if (resolved.kind === "store") hasProcessStore = true;
     processStores.add(resolved.kind === "store" ? resolved.path : sessionDir);
   }
   const canonicalProcessStores = new Set<string>();
@@ -163,12 +165,32 @@ export async function piTranscriptPath(
   const canonicalStores = new Set<string>();
   // A process-owned custom profile replaces the bridge default. Including both would let a
   // stale report from the bridge's unrelated profile appear valid for this pane.
-  const candidateStores = piProcesses.length === 0 ? [sessionDir] : [...canonicalProcessStores];
+  // macOS process_info can omit argv and has no /proc environment. These wrappers
+  // have fixed, isolated stores; never infer a root from the reported file itself.
+  const candidateStores = hasProcessStore ? [...canonicalProcessStores] : [
+    sessionDir,
+    ...(home ? [".pi-opt", ".pi-opt-work"].flatMap((profile) => [
+      join(home, profile, "sessions"),
+      // Connected OptChat windows keep their actual Pi transcript in the owner's run store.
+      join(home, profile, "memory", "profiles", "main", "runs"),
+    ]) : []),
+  ];
+  if (hasProcessStore && home) {
+    // A wrapper's session store also owns its OptChat runs, but never the other wrapper's
+    // or an arbitrary custom profile. The owner explicitly reports the run file.
+    for (const profile of [".pi-opt", ".pi-opt-work"]) {
+      try {
+        const root = join(home, profile);
+        if (canonicalProcessStores.has(realpathSync(join(root, "sessions")))) {
+          candidateStores.push(join(root, "memory", "profiles", "main", "runs"));
+        }
+      } catch { /* an absent wrapper store cannot authorize a run store */ }
+    }
+  }
   for (const store of candidateStores) {
     try { canonicalStores.add(realpathSync(store)); } catch { /* an absent store holds no session */ }
   }
-  // Preserve default-store behavior on platforms where process_info names only the shell or
-  // process environments cannot be read. A custom store is never guessed in those cases.
+  // Canonical containment checks apply to wrapper stores too, including unwritten files.
   const matches = [...canonicalStores].filter((store) => piTranscriptInStore(session.value, store) !== null || unwrittenSession(session.value, store) !== null);
   if (matches.length !== 1) return null;
   const path = piTranscriptInStore(session.value, matches[0]!);

@@ -507,3 +507,117 @@ it("rejects Pi session-dir command-line overrides it cannot verify", async () =>
     home: root,
   })).toBeNull();
 });
+
+describe("OptChat wrapper stores when process metadata is unavailable", () => {
+  const reported = (value: string) => ({ agent: "pi", agent_session: { agent: "pi", source: "herdr:pi", kind: "path", value } }) as never;
+  const options = { processes: [{ pid: 850, name: "node" }], argvOf: () => null, environOf: () => null, home: root };
+  const optSession = (profile: string, name: string) => {
+    const dir = join(root, profile, "sessions");
+    mkdirSync(dir, { recursive: true });
+    const target = join(dir, `${name}.jsonl`);
+    writeFileSync(target, "{\"type\":\"session\"}\n");
+    return target;
+  };
+
+  it("resolves personal and work wrapper reports without macOS argv or environment", async () => {
+    for (const profile of [".pi-opt", ".pi-opt-work"]) {
+      const target = optSession(profile, "active");
+      expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target) })).toEqual({ path: target });
+      expect(await piTranscriptPath("pane", store, {
+        ...options, agent: reported(target), processes: [{ pid: 850, argv: ["pi"] }],
+      })).toEqual({ path: target });
+    }
+  });
+
+  it("recognizes a wrapper session before its first assistant message is written", async () => {
+    const dir = join(root, ".pi-opt-work", "sessions");
+    mkdirSync(dir, { recursive: true });
+    const target = join(dir, "new-project", "pending.jsonl");
+    expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target) }))
+      .toEqual({ unwritten: { id: "pending", path: join(realpathSync(dir), "new-project", "pending.jsonl") } });
+  });
+
+  it("does not accept other custom stores or untrusted session reports", async () => {
+    const target = optSession(".pi-opt-other", "unapproved");
+    expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target) })).toBeNull();
+    const known = optSession(".pi-opt", "untrusted");
+    expect(await piTranscriptPath("pane", store, { ...options,
+      agent: { agent: "pi", agent_session: { agent: "pi", source: "other", kind: "path", value: known } } as never,
+    })).toBeNull();
+  });
+
+  it("never adds wrapper fallbacks to a process-owned store", async () => {
+    const target = optSession(".pi-opt", "stale-personal");
+    const work = join(root, ".pi-opt-work", "sessions");
+    mkdirSync(work, { recursive: true });
+    expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target),
+      processes: [{ pid: 850, argv: ["pi"] }], environOf: () => [`PI_CODING_AGENT_SESSION_DIR=${work}`],
+    })).toBeNull();
+  });
+
+  it.skipIf(!canSymlink)("rejects written and unwritten paths that escape a wrapper store", async () => {
+    const dir = join(root, ".pi-opt", "sessions");
+    mkdirSync(dir, { recursive: true });
+    const outside = join(root, "opt-outside");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "written.jsonl"), "{}\n");
+    symlinkSync(outside, join(dir, "escape"));
+    for (const name of ["written", "unwritten"]) {
+      expect(await piTranscriptPath("pane", store, { ...options,
+        agent: reported(join(dir, "escape", `${name}.jsonl`)),
+      })).toBeNull();
+    }
+  });
+});
+
+
+describe("OptChat connected-window run stores", () => {
+  const reported = (value: string) => ({ agent: "pi", agent_session: { agent: "pi", source: "herdr:pi", kind: "path", value } }) as never;
+  const options = { processes: [{ pid: 860, name: "node" }], argvOf: () => null, environOf: () => null, home: root };
+  const run = (profile: string, memoryProfile = "main") => {
+    const dir = join(root, profile, "memory", "profiles", memoryProfile, "runs");
+    mkdirSync(dir, { recursive: true });
+    const target = join(dir, "connected.jsonl");
+    writeFileSync(target, "{\"type\":\"session\"}\n");
+    return target;
+  };
+
+  it("accepts explicit personal and work main-run reports without process metadata", async () => {
+    for (const profile of [".pi-opt", ".pi-opt-work"]) {
+      const target = run(profile);
+      expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target) })).toEqual({ path: target });
+    }
+  });
+
+  it("rejects other profiles, files outside runs and untrusted reports", async () => {
+    for (const target of [run(".pi-opt-other"), run(".pi-opt", "other"), join(root, ".pi-opt", "memory", "profiles", "main", "private.jsonl")]) {
+      expect(await piTranscriptPath("pane", store, { ...options, agent: reported(target) })).toBeNull();
+    }
+    const known = run(".pi-opt");
+    expect(await piTranscriptPath("pane", store, { ...options, agent: { agent: "pi", agent_session: { agent: "pi", source: "other", kind: "path", value: known } } as never })).toBeNull();
+  });
+
+  it("accepts only the matching wrapper's authoritative run with Linux process metadata", async () => {
+    const personal = run(".pi-opt"), workRun = run(".pi-opt-work");
+    const work = join(root, ".pi-opt-work", "sessions");
+    mkdirSync(work, { recursive: true });
+    const owned = { ...options, processes: [{ pid: 860, argv: ["pi"] }], environOf: () => [`PI_CODING_AGENT_SESSION_DIR=${work}`] };
+    expect(await piTranscriptPath("pane", store, { ...owned, agent: reported(workRun) })).toEqual({ path: workRun });
+    expect(await piTranscriptPath("pane", store, { ...owned, agent: reported(personal) })).toBeNull();
+    const custom = join(root, "unrelated-custom-sessions"); mkdirSync(custom);
+    expect(await piTranscriptPath("pane", store, { ...owned, agent: reported(workRun),
+      environOf: () => [`PI_CODING_AGENT_SESSION_DIR=${custom}`],
+    })).toBeNull();
+  });
+
+  it.skipIf(!canSymlink)("rejects written and unwritten main-run symlink escapes", async () => {
+    const dir = dirname(run(".pi-opt"));
+    const outside = join(root, "outside-opt-runs");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "written.jsonl"), "{}\n");
+    symlinkSync(outside, join(dir, "escape"));
+    for (const name of ["written", "unwritten"]) {
+      expect(await piTranscriptPath("pane", store, { ...options, agent: reported(join(dir, "escape", `${name}.jsonl`)) })).toBeNull();
+    }
+  });
+});
