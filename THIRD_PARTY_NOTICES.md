@@ -2192,3 +2192,12 @@ schemes in d3-scale-chromatic.
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
+## OptChat connected-window integration overlay
+
+`integrations/pi-optchat/install.ts` patches the connected-window protocol of
+[`jonaslsaa/pi-optchat`](https://github.com/jonaslsaa/pi-optchat), pinned at 0.8.9,
+under MIT, Copyright (c) 2026 Jonas Silva. The installer copies the installed package
+with its LICENSE and notices intact; the source anchors identify the upstream changes.
+The MIT license text printed above applies. The Herdr adapter is independently written
+and loads Herdr's generated extension without modifying it.
